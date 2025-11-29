@@ -3,9 +3,11 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   routeRules: {
-    // prerender index route by default
-    '/': { prerender: true },
+    // Disable prerendering since we need database connection at runtime
+    '/': { ssr: true },
   },
 
   modules: ['@nuxtjs/supabase'],
+
+  compatibilityDate: '2025-11-30',
 })
