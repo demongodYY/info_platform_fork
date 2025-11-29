@@ -1,6 +1,6 @@
 <template>
   <div style="padding: 20px; font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto">
-    <h1>Notes App</h1>
+    <h1>罕见病信息平台</h1>
 
     <!-- Add Note Form -->
     <div
@@ -12,12 +12,12 @@
         background: #f0f8f0;
       "
     >
-      <h2 style="margin-top: 0">Add New Note</h2>
+      <h2 style="margin-top: 0">添加新信息</h2>
       <form @submit.prevent="submitNote">
         <input
           v-model="newMessage"
           type="text"
-          placeholder="Enter your note message..."
+          placeholder="Enter your message..."
           style="
             width: 100%;
             padding: 12px;
@@ -50,10 +50,10 @@
     </div>
 
     <!-- Notes List -->
-    <h2>All Notes</h2>
+    <h2>所有信息</h2>
 
     <div v-if="pending">
-      <p>Loading notes...</p>
+      <p>加载信息中...</p>
     </div>
 
     <div v-else-if="error">
