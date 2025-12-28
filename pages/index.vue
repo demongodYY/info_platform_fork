@@ -74,7 +74,9 @@
               background: #f9f9f9;
             "
           >
-            <h3 style="margin: 0 0 8px 0">{{ note.title }}</h3>
+            <NuxtLink :to="`/articles/${note.id}`">
+              <h3 style="margin: 0 0 8px 0">{{ note.title }}</h3>
+            </NuxtLink>
           </li>
         </ul>
       </div>
@@ -125,4 +127,3 @@ const submitNote = async () => {
   }
 }
 </script>
-
