@@ -1,18 +1,21 @@
 import eslintConfigPrettier from 'eslint-config-prettier'
 import tseslint from '@typescript-eslint/eslint-plugin'
 import tsParser from '@typescript-eslint/parser'
-import pluginVue from 'eslint-plugin-vue'
+import vuePlugin from 'eslint-plugin-vue'
+import vueParser from 'vue-eslint-parser'
 
 export default [
   {
     ignores: ['.nuxt/**', '.output/**', 'dist/**', 'node_modules/**', '.env', '*.log'],
   },
+
+  // JS / TS files
   {
     files: ['**/*.{js,ts}'],
     languageOptions: {
+      parser: tsParser,
       ecmaVersion: 'latest',
       sourceType: 'module',
-      parser: tsParser,
     },
     plugins: {
       '@typescript-eslint': tseslint,
@@ -31,21 +34,28 @@ export default [
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
-  ...pluginVue.configs['flat/recommended'],
+
+  // Vue files
   {
     files: ['**/*.vue'],
     languageOptions: {
-      parser: pluginVue.parser,
+      parser: vueParser,
       parserOptions: {
         parser: tsParser,
         ecmaVersion: 'latest',
         sourceType: 'module',
       },
     },
+    plugins: {
+      vue: vuePlugin,
+    },
     rules: {
+      ...vuePlugin.configs.recommended.rules,
       'vue/multi-word-component-names': 'off',
       'vue/no-v-html': 'warn',
     },
   },
+
+  // Disable formatting rules (Prettier)
   eslintConfigPrettier,
 ]
