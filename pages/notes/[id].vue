@@ -18,29 +18,36 @@ const mdContent = computed(() => md.render(note.value?.content ?? ''))
 </script>
 
 <template>
-  <div class="article-page">
-    <div class="article-content" v-html="mdContent"></div>
+  <div class="note-detail">
+    <NuxtLink to="/" class="back-btn">← Back</NuxtLink>
+
+    <p v-if="pending">Loading...</p>
+    <p v-else-if="error">Failed to load note</p>
+
+    <template v-else>
+      <div class="content" v-html="mdContent" />
+    </template>
   </div>
 </template>
 
 <style scoped>
-.article-page {
+.note-detail {
   padding: 24px;
 }
 
-.article-content {
-  max-width: 800px;
-  margin: 0 auto;
+.back-btn {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #555;
+  text-decoration: none;
+  font-size: 20px;
+}
+
+.back-btn:hover {
+  text-decoration: underline;
+}
+
+.content {
   line-height: 1.7;
-}
-
-.article-content h1,
-.article-content h2,
-.article-content h3 {
-  margin-top: 1.5em;
-}
-
-.article-content a {
-  color: #2563eb;
 }
 </style>
