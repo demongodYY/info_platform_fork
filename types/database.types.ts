@@ -5,19 +5,31 @@ export interface Database {
     Tables: {
       notes: {
         Row: {
-          id: number
-          hello: string
-          created_at?: string
+          id: string
+          title: string
+          content: string
+          category: string
+          source: string
+          published_at: string
+          updated_by: string
         }
         Insert: {
-          id?: number
-          hello: string
-          created_at?: string
+          id?: string
+          title: string
+          content: string
+          category: string
+          source: string
+          published_at: string
+          updated_by: string
         }
         Update: {
-          id?: number
-          hello?: string
-          created_at?: string
+          id?: string
+          title?: string
+          content?: string
+          category?: string
+          source?: string
+          published_at?: string
+          updated_by?: string
         }
       }
     }

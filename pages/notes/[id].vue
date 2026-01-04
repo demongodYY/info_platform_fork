@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import MarkdownIt from 'markdown-it'
+import type { NoteDetail } from '~/types/notes'
 
 const route = useRoute()
 
 const id = computed(() => route.params.id)
 
-const { data: note, pending, error } = await useFetch(`/api/notes/${id.value}`)
+const { data: note, pending, error } = await useFetch<NoteDetail>(`/api/notes/${id.value}`)
 
 const md = new MarkdownIt({
   html: true,
@@ -14,7 +15,7 @@ const md = new MarkdownIt({
   breaks: true,
 })
 
-const mdContent = computed(() => md.render(note.value?.content ?? ''))
+const mdContent = computed(() => md.render((note.value as NoteDetail | undefined)?.content ?? ''))
 </script>
 
 <template>

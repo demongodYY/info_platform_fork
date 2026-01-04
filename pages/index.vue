@@ -88,7 +88,11 @@
 </template>
 
 <script setup lang="ts">
-const { data, pending, error, refresh } = await useFetch('/api/notes')
+import type { NoteDetail } from '~/types/notes'
+
+type NotesResponse = { notes: NoteDetail[] }
+
+const { data, pending, error, refresh } = await useFetch<NotesResponse>('/api/notes')
 
 const newMessage = ref('')
 const submitting = ref(false)
