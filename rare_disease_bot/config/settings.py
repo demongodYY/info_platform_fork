@@ -18,6 +18,7 @@ MODEL_NAME = os.getenv("MODEL_NAME", "qwen-max")
 HEADLESS = False  # 使用有界面模式（反 Cloudflare）
 DEFAULT_WAIT_TIME = int(os.getenv("DEFAULT_WAIT_TIME", "8"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
+PERSISTENT_CONTEXT = os.getenv("PERSISTENT_CONTEXT", "true").lower() == "true"
 
 # 用户代理
 USER_AGENT = (
@@ -25,6 +26,14 @@ USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/120.0.0.0 Safari/537.36"
 )
+
+# 代理（如需，支持 http(s)/socks5）示例："http://user:pass@host:port" 或 "socks5://host:port"
+PROXY_SERVER = os.getenv("PROXY_SERVER")
+
+# 持久化浏览器数据（用于保留 Cloudflare 清除 Cookie）
+USER_DATA_DIR = PROJECT_ROOT / "data" / "browser_user_data"
+USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+STORAGE_STATE_PATH = PROJECT_ROOT / "data" / "browser_storage.json"
 
 # 数据存储
 DATA_DIR = PROJECT_ROOT / "data" / "articles"

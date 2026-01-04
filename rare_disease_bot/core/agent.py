@@ -19,6 +19,7 @@ from core.explorer import WebsiteExplorer
 from core.extractor import ArticleExtractor
 from core.markdown_generator import MarkdownGenerator
 from utils.storage import ArticleStorage, BatchArticleSaver
+from utils.wp_api import fetch_wp_posts
 
 console = Console()
 
@@ -48,6 +49,7 @@ class NewsCrawlerAgent:
         # 状态
         self.page_structure = None
         self.article_urls = []
+        self.wp_posts: List[Dict] = []
         self.current_step = ""
         
     async def run(self):
@@ -75,7 +77,10 @@ class NewsCrawlerAgent:
         
         success = await self.browser.navigate(self.base_url)
         if not success:
-            raise Exception("无法访问目标网站")
+            console.print("[yellow]无法访问目标网站，尝试使用 WordPress API 回退[/yellow]")
+            # 标记为回退模式
+            self.page_structure = {"page_type": "fallback_wp_api"}
+            return
             
         html = await self.browser.get_html(max_length=30000)
         self.page_structure = self.explorer.analyze_page_structure(
@@ -88,7 +93,9 @@ class NewsCrawlerAgent:
         
         page_type = self.page_structure.get('page_type')
         
-        if page_type == 'single_article':
+        if page_type == 'fallback_wp_api':
+            await self._collect_via_wp_api()
+        elif page_type == 'single_article':
             self.article_urls = [self.base_url]
         else:
             await self._collect_from_list()
@@ -116,6 +123,13 @@ class NewsCrawlerAgent:
         # 应用数量限制
         if self.max_articles:
             self.article_urls = self.article_urls[:self.max_articles]
+    
+    async def _collect_via_wp_api(self):
+        """通过 WordPress API 获取文章（回退方案）"""
+        per_page = self.max_articles or 20
+        posts = fetch_wp_posts(self.base_url, per_page=per_page)
+        self.wp_posts = posts
+        self.article_urls = [p.get('url') for p in posts if p.get('url')]
             
     async def _collect_with_pagination(self, link_selector: str):
         """从多页收集链接"""
@@ -161,6 +175,20 @@ class NewsCrawlerAgent:
     async def _extract_phase(self):
         """阶段 3: 提取文章内容"""
         console.print("开始提取...\n")
+        
+        # 回退：如果有 WP posts，直接保存而不使用浏览器
+        if self.wp_posts:
+            total = len(self.wp_posts)
+            for i, article in enumerate(self.wp_posts, 1):
+                # 验证与保存（将摘要加入）
+                content = article.get('content', '')
+                article['summary'] = content[:200] + '...' if len(content) > 200 else content
+                if self.saver.save(article):
+                    title = (article.get('title') or '')[:50]
+                    console.print(f"[{i}/{total}] {title}")
+                else:
+                    console.print(f"[{i}/{total}] 失败: 保存错误")
+            return
         
         total = len(self.article_urls)
         
