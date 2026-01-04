@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
+    "prebuild": "node server/scripts/import-articles.js",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
