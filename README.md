@@ -454,8 +454,20 @@ git push origin feat/new-feature
 > - 如果已存在未合并的同步 PR，workflow 不会创建新 PR，而是在现有 PR 中添加评论
 > - 如果检测到部署失败，workflow 会停止，不会创建 PR
 
+## 🤝 贡献指南
+
+我们欢迎所有形式的贡献！请查看 [CONTRIBUTING.md](./CONTRIBUTING.md) 了解如何开始。
+
+**快速开始**：
+1. Fork 仓库
+2. 创建功能分支 (`git checkout -b feat/amazing-feature`)
+3. 提交更改 (`git commit -m 'feat: 添加新功能'`)
+4. 推送到分支 (`git push origin feat/amazing-feature`)
+5. 创建 Pull Request
+
 ## 📖 相关文档
 
+- [贡献指南](./CONTRIBUTING.md) - 如何为项目做贡献
 - [Nuxt 3 文档](https://nuxt.com/docs)
 - [Supabase 文档](https://supabase.com/docs)
 - [Vercel 部署文档](https://vercel.com/docs)
