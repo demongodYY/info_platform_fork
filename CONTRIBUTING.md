@@ -42,6 +42,7 @@ git checkout -b fix/your-bug-fix
 ```
 
 分支命名规范：
+
 - `feat/` - 新功能
 - `fix/` - Bug 修复
 - `docs/` - 文档更新
@@ -81,6 +82,7 @@ SUPABASE_SERVICE_KEY=your_supabase_service_key
 ```
 
 > **注意**：如果你没有 Supabase 账户，可以：
+>
 > - 使用项目的 Supabase 实例（需要权限）
 > - 或者只开发前端功能，不涉及数据库操作
 
@@ -99,6 +101,7 @@ npm run dev
 项目使用 **ESLint** 和 **Prettier** 进行代码规范检查。
 
 **Prettier 配置**：
+
 - 不使用分号
 - 单引号
 - 2 空格缩进
@@ -106,6 +109,7 @@ npm run dev
 - ES5 尾随逗号
 
 **ESLint 规则**：
+
 - TypeScript 严格模式
 - Vue 3 Composition API 最佳实践
 - 警告未使用的变量（`_` 前缀除外）
@@ -130,6 +134,7 @@ npm run format:check
 ### Git Hooks
 
 项目配置了 **Husky**，在提交前会自动：
+
 - 运行 ESLint 检查并自动修复
 - 使用 Prettier 格式化代码
 - 如果有无法修复的错误，会阻止提交
@@ -147,6 +152,7 @@ npm run format:check
 ```
 
 **类型（type）**：
+
 - `feat`: 新功能
 - `fix`: Bug 修复
 - `docs`: 文档更新
@@ -157,6 +163,7 @@ npm run format:check
 - `chore`: 构建/工具相关
 
 **示例**：
+
 ```bash
 git commit -m "feat(ui): 添加文章搜索功能"
 git commit -m "fix(api): 修复文章列表分页问题"
@@ -269,17 +276,20 @@ npm run preview
 如果你要贡献 `rare_disease_bot` 子项目：
 
 1. **进入子项目目录**：
+
    ```bash
    cd rare_disease_bot
    ```
 
 2. **创建虚拟环境**：
+
    ```bash
    python3 -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    ```
 
 3. **安装依赖**：
+
    ```bash
    pip install -r requirements.txt
    playwright install chromium
@@ -300,6 +310,7 @@ npm run preview
 ### Q: 我没有 Supabase 账户，可以开发吗？
 
 A: 可以！你可以：
+
 - 只开发前端功能（不涉及数据库操作）
 - 使用 Mock 数据
 - 申请访问项目的 Supabase 实例（联系 maintainer）
@@ -307,13 +318,15 @@ A: 可以！你可以：
 ### Q: 如何测试 API 路由？
 
 A: 你可以：
+
 - 使用 Nuxt DevTools（开发模式下自动启用）
 - 使用 `curl` 或 Postman 测试 API
 - 查看 `server/api/` 目录下的 API 实现
 
 ### Q: 提交 PR 后需要做什么？
 
-A: 
+A:
+
 - 等待 maintainer 审查
 - 根据反馈进行修改
 - 保持 PR 分支与上游 main 分支同步
@@ -321,6 +334,7 @@ A:
 ### Q: 如何报告 Bug？
 
 A: 在 [Issues](https://github.com/OpenRareDisease/info_platform/issues) 中创建新 issue，包含：
+
 - Bug 描述
 - 复现步骤
 - 预期行为
@@ -331,6 +345,7 @@ A: 在 [Issues](https://github.com/OpenRareDisease/info_platform/issues) 中创�
 ### Q: 如何提出新功能建议？
 
 A: 在 [Issues](https://github.com/OpenRareDisease/info_platform/issues) 中创建新 issue，描述：
+
 - 功能需求
 - 使用场景
 - 可能的实现方案（可选）

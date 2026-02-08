@@ -74,6 +74,7 @@ pnpm test:coverage
 ```
 
 测试文件命名规范：
+
 - `*.test.ts` 或 `*.test.js`
 - `*.spec.ts` 或 `*.spec.js`
 
@@ -105,7 +106,7 @@ import MyComponent from '~/components/MyComponent.vue'
 describe('MyComponent', () => {
   it('should render correctly', () => {
     const wrapper = mount(MyComponent, {
-      props: { message: 'Hello' }
+      props: { message: 'Hello' },
     })
     expect(wrapper.text()).toContain('Hello')
   })
@@ -132,6 +133,7 @@ describe('API Routes', () => {
 2. **编写测试用例**：使用 `describe` 和 `it` 组织测试
 
 3. **运行测试**：
+
    ```bash
    pnpm test:watch  # 开发时使用监听模式
    ```
@@ -159,6 +161,7 @@ describe('API Routes', () => {
 ### Q: 测试运行太慢怎么办？
 
 A: Pre-commit hook 中运行所有测试是为了确保没有破坏现有功能。如果测试运行时间过长，可以考虑：
+
 - 优化测试用例，减少不必要的等待
 - 使用 mock 替代真实 API 调用
 - 只运行相关测试（需要手动配置）
@@ -166,6 +169,7 @@ A: Pre-commit hook 中运行所有测试是为了确保没有破坏现有功能�
 ### Q: 如何跳过 pre-commit hook？
 
 A: 不推荐，但如果必须跳过（紧急情况），使用：
+
 ```bash
 git commit --no-verify
 ```
@@ -176,7 +180,8 @@ A: 修复测试后再提交。如果测试失败，说明代码可能有问题�
 
 ### Q: 如何只运行特定测试文件？
 
-A: 
+A:
+
 ```bash
 pnpm test utils/example.test.ts
 ```

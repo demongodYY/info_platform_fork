@@ -69,27 +69,32 @@ graph TB
 ## 🛠️ 技术栈
 
 ### 前端框架
+
 - **[Nuxt 3](https://nuxt.com)** - Vue 3 全栈框架
 - **[Vue 3](https://vuejs.org)** - 渐进式 JavaScript 框架
 - **[TypeScript](https://www.typescriptlang.org)** - 类型安全的 JavaScript
 - **[Sass](https://sass-lang.com)** - CSS 预处理器
 
 ### 后端服务
+
 - **[Supabase](https://supabase.com)** - 开源 Firebase 替代品（PostgreSQL 数据库）
 - **Nuxt Server API** - 服务端 API 路由
 
 ### 工具库
+
 - **[Markdown-it](https://github.com/markdown-it/markdown-it)** - Markdown 解析器
 - **[ESLint](https://eslint.org)** + **[Prettier](https://prettier.io)** - 代码规范和格式化
 - **[Husky](https://typicode.github.io/husky)** - Git hooks 管理
 
 ### 子项目：rare_disease_bot
+
 - **[LangChain](https://www.langchain.com)** - LLM 应用开发框架
 - **[Playwright](https://playwright.dev)** - 浏览器自动化
 - **[Qwen3-max](https://dashscope.aliyuncs.com)** - 阿里云通义千问大模型
 - **Python 3** - 爬虫脚本运行环境
 
 ### 部署
+
 - **[Vercel](https://vercel.com)** - 前端部署平台
 
 ## 📁 项目结构
@@ -252,6 +257,7 @@ git push origin main
 ```
 
 **自动导入流程**：
+
 1. 代码推送到 GitHub 后触发 Vercel CI/CD
 2. Vercel 构建时执行 `prebuild` 脚本（`server/scripts/import-articles.js`）
 3. 脚本扫描 `server/articles/` 目录下**当天**的文章（按年月日匹配）
@@ -273,6 +279,7 @@ git push origin main
 ### 2. 配置环境变量
 
 在 Vercel 项目设置中添加以下环境变量：
+
 - `SUPABASE_URL`
 - `SUPABASE_KEY`
 - `SUPABASE_SERVICE_KEY`
@@ -395,6 +402,7 @@ npm run test:coverage
 ### 数据库结构
 
 文章存储在 Supabase 的 `notes` 表中，包含以下字段：
+
 - `id` - UUID
 - `title` - 标题
 - `content` - Markdown 内容
@@ -476,7 +484,8 @@ git push origin feat/new-feature
    - 确保仓库 Actions 设置允许 workflow 访问 secrets
    - 确保 "Workflow permissions" 设置为 "Read and write permissions"
 
-> ⚠️ **重要**: 
+> ⚠️ **重要**:
+>
 > - 只有仓库 Owner（`demongodYY`）的提交才会触发自动同步 workflow
 > - 如果已存在未合并的同步 PR，workflow 不会创建新 PR，而是在现有 PR 中添加评论
 > - 如果检测到部署失败，workflow 会停止，不会创建 PR
@@ -486,6 +495,7 @@ git push origin feat/new-feature
 我们欢迎所有形式的贡献！请查看 [CONTRIBUTING.md](./CONTRIBUTING.md) 了解如何开始。
 
 **快速开始**：
+
 1. Fork 仓库
 2. 创建功能分支 (`git checkout -b feat/amazing-feature`)
 3. 提交更改 (`git commit -m 'feat: 添加新功能'`)
