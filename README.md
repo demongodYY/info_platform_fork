@@ -69,27 +69,32 @@ graph TB
 ## 🛠️ 技术栈
 
 ### 前端框架
+
 - **[Nuxt 3](https://nuxt.com)** - Vue 3 全栈框架
 - **[Vue 3](https://vuejs.org)** - 渐进式 JavaScript 框架
 - **[TypeScript](https://www.typescriptlang.org)** - 类型安全的 JavaScript
 - **[Sass](https://sass-lang.com)** - CSS 预处理器
 
 ### 后端服务
+
 - **[Supabase](https://supabase.com)** - 开源 Firebase 替代品（PostgreSQL 数据库）
 - **Nuxt Server API** - 服务端 API 路由
 
 ### 工具库
+
 - **[Markdown-it](https://github.com/markdown-it/markdown-it)** - Markdown 解析器
 - **[ESLint](https://eslint.org)** + **[Prettier](https://prettier.io)** - 代码规范和格式化
 - **[Husky](https://typicode.github.io/husky)** - Git hooks 管理
 
 ### 子项目：rare_disease_bot
+
 - **[LangChain](https://www.langchain.com)** - LLM 应用开发框架
 - **[Playwright](https://playwright.dev)** - 浏览器自动化
 - **[Qwen3-max](https://dashscope.aliyuncs.com)** - 阿里云通义千问大模型
 - **Python 3** - 爬虫脚本运行环境
 
 ### 部署
+
 - **[Vercel](https://vercel.com)** - 前端部署平台
 
 ## 📁 项目结构
@@ -237,7 +242,7 @@ python main.py --url https://rarediseases.org/news/ --max-articles 1 --verbose
 
 ### 数据更新流程
 
-爬虫运行完成后，需要将代码提交并推送以触发数据导入：
+爬虫运行完成后，需要将代码提交并推送到 GitHub，然后**创建 Pull Request** 才会触发 CI/CD 部署：
 
 ```bash
 # 1. 查看生成的文章文件
@@ -248,19 +253,29 @@ git add server/articles/
 git commit -m "chore: 添加爬取的文章"
 
 # 3. 推送到远程仓库
-git push origin main
+git push origin feat/your-branch-name
+
+# 4. ⚠️ 重要：在 GitHub 上创建 Pull Request
+# 访问 https://github.com/demongodYY/info_platform_fork
+# 点击 "Compare & pull request" 创建 PR
+# 等待 Owner 合并 PR 后才会触发 CI/CD
 ```
 
 **自动导入流程**：
-1. 代码推送到 GitHub 后触发 Vercel CI/CD
+
+1. **创建并合并 PR**：在 [下游仓库](https://github.com/demongodYY/info_platform_fork) 创建 PR，Owner 合并后触发 Vercel CI/CD
 2. Vercel 构建时执行 `prebuild` 脚本（`server/scripts/import-articles.js`）
 3. 脚本扫描 `server/articles/` 目录下**当天**的文章（按年月日匹配）
 4. 只导入 `markdown_professional/` 目录下的专业版文章
 5. 解析文章标题、分类、原文链接等元数据
 6. 通过 Supabase REST API 导入到数据库
-7. 部署成功后，文章会自动出现在网站上
+7. 部署成功后，文章会自动出现在网站上 [www.raredisease.top](https://www.raredisease.top)
 
-> ⚠️ **注意**：只有当天（按年月日）的文章会被导入，确保爬虫在同一天运行并推送代码。
+> ⚠️ **重要提示**：
+>
+> - 只有当天（按年月日）的文章会被导入，确保爬虫在同一天运行并推送代码
+> - **代码推送到 GitHub 后，必须创建 Pull Request 并等待 Owner 合并到 `main` 分支，才会触发 CI/CD 更新线上网站**
+> - **只有在 `main` 分支上 Owner 的 merge 或 push 才会触发 Vercel 自动部署**
 
 详细使用说明请参考 [rare_disease_bot/README.md](./rare_disease_bot/README.md)
 
@@ -273,13 +288,22 @@ git push origin main
 ### 2. 配置环境变量
 
 在 Vercel 项目设置中添加以下环境变量：
+
 - `SUPABASE_URL`
 - `SUPABASE_KEY`
 - `SUPABASE_SERVICE_KEY`
 
 ### 3. 部署
 
-Vercel 会自动检测 Nuxt 项目并配置构建命令。每次推送到主分支都会自动部署。
+Vercel 会自动检测 Nuxt 项目并配置构建命令。
+
+> ⚠️ **重要**：只有在 [demongodYY/info_platform_fork](https://github.com/demongodYY/info_platform_fork) 仓库的 `main` 分支上，**Owner 提交的 merge 或 push** 才会触发 Vercel CI/CD 自动部署。
+>
+> 这意味着：
+>
+> - 其他贡献者推送代码到分支不会触发部署
+> - 必须创建 Pull Request 并等待 Owner 合并到 `main` 分支
+> - Owner 直接 push 到 `main` 分支也会触发部署
 
 ### 构建流程
 
@@ -313,7 +337,34 @@ npm run format:check
 
 ### Git Hooks
 
-项目配置了 Husky，在提交前会自动运行 lint-staged 检查代码。
+项目配置了 Husky，在提交前会自动：
+
+1. **运行 lint-staged**：
+   - 对暂存的文件运行 ESLint 并自动修复
+   - 使用 Prettier 格式化代码
+
+2. **运行所有测试**：
+   - 执行 `pnpm test` 运行所有测试
+   - 如果测试失败，会阻止提交
+
+确保所有检查通过后才能成功提交代码。
+
+### 测试
+
+项目使用 Vitest 作为测试框架：
+
+```bash
+# 运行所有测试
+npm test
+
+# 监听模式（开发时使用）
+npm run test:watch
+
+# 生成覆盖率报告
+npm run test:coverage
+```
+
+详细测试配置请参考 [TEST_SETUP.md](./TEST_SETUP.md)
 
 ## 🔧 技术细节
 
@@ -368,6 +419,7 @@ npm run format:check
 ### 数据库结构
 
 文章存储在 Supabase 的 `notes` 表中，包含以下字段：
+
 - `id` - UUID
 - `title` - 标题
 - `content` - Markdown 内容
@@ -378,17 +430,19 @@ npm run format:check
 
 ## 🔄 开发流程
 
-由于 Vercel 免费版限制（只能关联个人 private 仓库），且只有 repo owner 的提交才能触发 CD，本项目采用以下开发流程：
+由于 Vercel 免费版限制（只能关联个人 private 仓库），且**只有在 `main` 分支上 Owner 的 merge 或 push 才能触发 CD**，本项目采用以下开发流程：
 
 ### 流程说明
 
 1. **在[下游仓库](https://github.com/demongodYY/info_platform_fork)开发并提交 PR**
    - 在个人 fork 仓库（当前仓库）创建功能分支进行开发
-   - 创建 Pull Request 提交给仓库 Owner
+   - 将代码推送到 GitHub
+   - **⚠️ 重要：必须创建 Pull Request 提交给仓库 Owner**
 
 2. **Owner 合并触发 CD**
-   - Owner 审查并合并 PR 到主分支
-   - Owner 的提交会触发 Vercel CI/CD 自动部署
+   - Owner 审查并合并 PR 到 `main` 分支
+   - **只有在 `main` 分支上 Owner 的 merge 或 push 才会触发 Vercel CI/CD 自动部署**
+   - Owner 的提交会触发 Vercel CI/CD 自动部署到线上网站 [www.raredisease.top](https://www.raredisease.top)
    - **GitHub Actions 会自动检测部署状态**（最多等待 10 分钟）
 
 3. **自动同步到上游仓库**
@@ -401,7 +455,9 @@ npm run format:check
 ### 自动化工作流程
 
 ```
-代码推送到 main 分支（Owner 合并 PR 后）
+Owner 在 main 分支上 merge PR 或直接 push
+    ↓
+Vercel CI/CD 自动触发部署（只有 Owner 的提交）
     ↓
 GitHub Actions 自动触发
     ↓
@@ -425,13 +481,15 @@ git add .
 git commit -m "feat: 添加新功能"
 git push origin feat/new-feature
 
-# 2. 在 GitHub 上创建 PR 给 Owner
+# 2. ⚠️ 重要：在 GitHub 上创建 PR 给 Owner
+# 访问 https://github.com/demongodYY/info_platform_fork
+# 点击 "Compare & pull request" 创建 PR
 # 等待 Owner 审查并合并
 
-# 3. Owner 合并后，GitHub Actions 会自动：
-#    - 等待 Vercel 部署完成
-#    - 检查变更
-#    - 自动向上游仓库创建 PR
+# 3. Owner 合并后，会自动触发：
+#    - Vercel CI/CD 自动部署到线上网站
+#    - GitHub Actions 自动检测部署状态
+#    - 检查变更并自动向上游仓库创建 PR
 #    无需手动操作！🎉
 ```
 
@@ -449,13 +507,28 @@ git push origin feat/new-feature
    - 确保仓库 Actions 设置允许 workflow 访问 secrets
    - 确保 "Workflow permissions" 设置为 "Read and write permissions"
 
-> ⚠️ **重要**: 
+> ⚠️ **重要**:
+>
 > - 只有仓库 Owner（`demongodYY`）的提交才会触发自动同步 workflow
 > - 如果已存在未合并的同步 PR，workflow 不会创建新 PR，而是在现有 PR 中添加评论
 > - 如果检测到部署失败，workflow 会停止，不会创建 PR
 
+## 🤝 贡献指南
+
+我们欢迎所有形式的贡献！请查看 [CONTRIBUTING.md](./CONTRIBUTING.md) 了解如何开始。
+
+**快速开始**：
+
+1. Fork 仓库
+2. 创建功能分支 (`git checkout -b feat/amazing-feature`)
+3. 提交更改 (`git commit -m 'feat: 添加新功能'`)
+4. 推送到分支 (`git push origin feat/amazing-feature`)
+5. 创建 Pull Request
+
 ## 📖 相关文档
 
+- [贡献指南](./CONTRIBUTING.md) - 如何为项目做贡献
+- [测试配置](./TEST_SETUP.md) - 测试框架配置和使用说明
 - [Nuxt 3 文档](https://nuxt.com/docs)
 - [Supabase 文档](https://supabase.com/docs)
 - [Vercel 部署文档](https://vercel.com/docs)

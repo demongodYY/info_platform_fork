@@ -1,1 +1,11 @@
+# 运行 lint-staged（包含 lint、format 和测试）
 pnpm exec lint-staged
+
+# 运行所有测试（确保没有破坏现有功能）
+echo "Running tests..."
+pnpm test || {
+  echo "❌ Tests failed. Please fix the errors before committing."
+  exit 1
+}
+
+echo "✅ All checks passed!"

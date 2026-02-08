@@ -147,11 +147,13 @@ rare_disease_news_bot/
 每篇文章会生成两个 Markdown 文件：
 
 #### 专业版（markdown_professional/）
+
 - 保持原文的专业性和准确性
 - 正确翻译医学术语
 - 适合医疗专业人士阅读
 
 #### 小白版（markdown_simplified/）
+
 - 用通俗易懂的语言重写
 - 解释专业术语
 - 适合普通读者理解
@@ -184,6 +186,7 @@ python main.py --url https://rarediseases.org/news/ --max-articles 50
 ```
 
 **输出**：
+
 ```
 🚀 智能新闻爬虫系统
 ================================================================
@@ -291,14 +294,16 @@ lxml
 
 ### Q: Cloudflare 验证一直通不过？
 
-A: 
+A:
+
 1. 确保使用有界面模式（`HEADLESS=False`）
 2. 增加等待时间（修改 `DEFAULT_WAIT_TIME`）
 3. 手动完成验证后程序会继续
 
 ### Q: 提取的内容不完整？
 
-A: 
+A:
+
 1. 检查文章页面是否需要滚动加载
 2. 增加 HTML 截断长度（`extractor.py` 中的 `max_length`）
 3. 检查 LLM 响应是否被截断
@@ -306,6 +311,7 @@ A:
 ### Q: 如何支持更多网站？
 
 A: 系统是自适应的，理论上支持所有新闻网站。如遇到特殊网站，可以：
+
 1. 调整页面分析提示词（`explorer.py`）
 2. 添加自定义选择器规则
 3. 调整分页逻辑（`agent.py`）
@@ -313,6 +319,7 @@ A: 系统是自适应的，理论上支持所有新闻网站。如遇到特殊�
 ### Q: 如何更换 LLM？
 
 A: 修改 `.env` 文件：
+
 ```bash
 # 使用 OpenAI
 OPENAI_API_BASE=https://api.openai.com/v1

@@ -101,6 +101,7 @@
 **错误信息**: `PAT secret is required` 或 `Permission denied (403)`
 
 **解决方案**:
+
 - 确认已在仓库 Settings → Secrets → Actions 中添加了 `PAT` secret
 - 确认 PAT 有正确的权限：
   - 对于公开仓库：需要 `public_repo` scope
@@ -112,11 +113,13 @@
 **错误信息**: `Permission denied (403)`
 
 **可能原因**:
+
 - PAT 没有 `public_repo` 或 `repo` scope
 - PAT 的所有者不是 OpenRareDisease 组织的成员（如果是组织仓库）
 - 上游仓库不允许从 fork 创建 PR
 
 **解决方案**:
+
 - 检查 PAT 的权限范围
 - 如果是组织仓库，确保 PAT 的所有者是组织成员
 - 检查上游仓库设置是否允许从 fork 创建 PR
@@ -126,6 +129,7 @@
 **错误信息**: `PR creation failed (422)` 或 `PR already exists`
 
 **解决方案**:
+
 - 检查上游仓库是否已有未合并的 PR
 - 如果有，先合并或关闭现有 PR
 - Workflow 会自动检测现有 PR 并在其中添加评论
@@ -135,6 +139,7 @@
 **错误信息**: `No changes to sync`
 
 **解决方案**:
+
 - 确认 fork 的 main 分支与上游 main 分支有差异
 - 检查 git diff 输出
 
@@ -143,6 +148,7 @@
 **错误信息**: `Repository not found (404)`
 
 **解决方案**:
+
 - 确认上游仓库名称正确：`OpenRareDisease/info_platform`
 - 确认 fork 仓库名称正确：`demongodYY/info_platform_fork`
 - 确认仓库是公开的或 PAT 有访问权限
