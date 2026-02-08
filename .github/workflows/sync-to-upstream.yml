@@ -2,542 +2,176 @@ name: Sync to Upstream Repository
 
 on:
   push:
-    branches:
-      - main
-    # 只处理仓库 owner 的提交（触发 CD 的提交）
+    branches: [ main ]
   workflow_dispatch:
-    # 允许手动触发
 
-# 确保 workflow 有权限访问 secrets
-# 注意：secrets 的访问权限由仓库设置控制，不需要在 permissions 中声明
 permissions:
   contents: read
   pull-requests: write
 
 env:
-  UPSTREAM_REPO: OpenRareDisease/info_platform
+  UPSTREAM_OWNER: OpenRareDisease
+  UPSTREAM_REPO: info_platform
   UPSTREAM_BRANCH: main
 
 jobs:
-  check-deployment:
-    name: Wait for Vercel Deployment
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'demongodYY' # 只在下游仓库运行
-    outputs:
-      deployment-status: ${{ steps.check.outputs.status }}
-    steps:
-      - name: Check Vercel deployment status
-        id: check
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const commitSha = '${{ github.sha }}';
-            const maxWaitTime = 10 * 60 * 1000; // 10 分钟
-            const checkInterval = 30 * 1000; // 30 秒检查一次
-            const startTime = Date.now();
-            
-            console.log(`🔍 Checking deployment status for commit: ${commitSha}`);
-            
-            while (Date.now() - startTime < maxWaitTime) {
-              try {
-                // 检查 GitHub Deployments API
-                const { data: deployments } = await github.rest.repos.listDeployments({
-                  owner: process.env.GITHUB_REPOSITORY_OWNER,
-                  repo: process.env.GITHUB_REPOSITORY.split('/')[1],
-                  sha: commitSha,
-                  per_page: 1,
-                });
-                
-                if (deployments.length > 0) {
-                  const deployment = deployments[0];
-                  console.log(`📦 Found deployment: ${deployment.id}`);
-                  
-                  // 检查 deployment status
-                  const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
-                    owner: process.env.GITHUB_REPOSITORY_OWNER,
-                    repo: process.env.GITHUB_REPOSITORY.split('/')[1],
-                    deployment_id: deployment.id,
-                    per_page: 1,
-                  });
-                  
-                  if (statuses.length > 0) {
-                    const status = statuses[0];
-                    console.log(`📊 Deployment status: ${status.state}`);
-                    
-                    if (status.state === 'success') {
-                      console.log('✅ Deployment succeeded!');
-                      core.setOutput('status', 'success');
-                      return;
-                    } else if (status.state === 'failure' || status.state === 'error') {
-                      console.log(`❌ Deployment failed: ${status.state}`);
-                      core.setOutput('status', 'failure');
-                      return;
-                    }
-                  }
-                }
-                
-                // 也检查 commit status（Vercel 可能会设置）
-                const { data: statuses } = await github.rest.repos.getCombinedStatusForRef({
-                  owner: process.env.GITHUB_REPOSITORY_OWNER,
-                  repo: process.env.GITHUB_REPOSITORY.split('/')[1],
-                  ref: commitSha,
-                });
-                
-                const vercelStatus = statuses.statuses.find(s => 
-                  s.context.includes('vercel') || s.context.includes('Vercel')
-                );
-                
-                if (vercelStatus) {
-                  console.log(`📊 Vercel status: ${vercelStatus.state}`);
-                  if (vercelStatus.state === 'success') {
-                    console.log('✅ Vercel deployment succeeded!');
-                    core.setOutput('status', 'success');
-                    return;
-                  } else if (vercelStatus.state === 'failure' || vercelStatus.state === 'error') {
-                    console.log(`❌ Vercel deployment failed: ${vercelStatus.state}`);
-                    core.setOutput('status', 'failure');
-                    return;
-                  }
-                }
-                
-                console.log('⏳ Deployment in progress, waiting...');
-                await new Promise(resolve => setTimeout(resolve, checkInterval));
-              } catch (error) {
-                console.log(`⚠️ Error checking deployment: ${error.message}`);
-                // 继续等待
-                await new Promise(resolve => setTimeout(resolve, checkInterval));
-              }
-            }
-            
-            // 超时后，如果还没找到部署状态，假设成功（可能是 Vercel 还没创建 status）
-            console.log('⏰ Timeout reached, assuming deployment will succeed');
-            core.setOutput('status', 'timeout');
-
   sync-to-upstream:
-    name: Create PR to Upstream
-    needs: check-deployment
+    name: Sync downstream → upstream
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'demongodYY' && (needs.check-deployment.outputs.deployment-status == 'success' || needs.check-deployment.outputs.deployment-status == 'timeout')
-    
+
+    # 只允许仓库 owner 本人触发（避免 bot / fork / dependabot 拿不到 secrets）
+    if: github.repository_owner == 'demongodYY' && github.actor == 'demongodYY'
+
     steps:
+      # ------------------------------------------------------------
+      # 基础调试信息（不涉及 secrets）
+      # ------------------------------------------------------------
+      - name: Debug context
+        run: |
+          echo "🔎 Debug context"
+          echo "actor: $GITHUB_ACTOR"
+          echo "event: $GITHUB_EVENT_NAME"
+          echo "ref:   $GITHUB_REF"
+          echo "sha:   $GITHUB_SHA"
+          echo "repo:  $GITHUB_REPOSITORY"
+
+      # ------------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Git
+      - name: Configure git
         run: |
-          git config --global user.name "github-actions[bot]"
+          git config --global user.name  "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      # ------------------------------------------------------------
+      # 添加并拉取 upstream
+      # ------------------------------------------------------------
       - name: Add upstream remote
         run: |
-          git remote add upstream https://github.com/${{ env.UPSTREAM_REPO }}.git || true
-          git remote set-url upstream https://github.com/${{ env.UPSTREAM_REPO }}.git
-
-      - name: Fetch upstream
-        run: |
+          git remote add upstream https://github.com/${{ env.UPSTREAM_OWNER }}/${{ env.UPSTREAM_REPO }}.git || true
           git fetch upstream ${{ env.UPSTREAM_BRANCH }}
 
+      # ------------------------------------------------------------
+      # 检查是否有差异
+      # ------------------------------------------------------------
       - name: Check for changes
-        id: check-changes
+        id: diff
         run: |
-          # 检查当前分支和上游分支是否有差异
           if git diff --quiet HEAD upstream/${{ env.UPSTREAM_BRANCH }}; then
             echo "no-changes=true" >> $GITHUB_OUTPUT
-            echo "ℹ️ No changes to sync"
+            echo "ℹ️ No changes detected"
           else
             echo "no-changes=false" >> $GITHUB_OUTPUT
-            echo "✅ Changes detected, will create PR"
-            # 显示变更统计
-            echo "📊 Change summary:"
+            echo "✅ Changes detected:"
             git diff --stat HEAD upstream/${{ env.UPSTREAM_BRANCH }}
           fi
 
-      - name: Check for existing PRs
-        if: steps.check-changes.outputs.no-changes == 'false'
-        id: check-prs
+      # ------------------------------------------------------------
+      # 使用 PAT 调试：能否访问 upstream（不泄露 token）
+      # ------------------------------------------------------------
+      - name: Debug PAT access to upstream repo
+        if: steps.diff.outputs.no-changes == 'false'
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PAT }}
           script: |
+            console.log('🔐 PAT provided to github-script');
+
+            try {
+              const { data } = await github.rest.repos.get({
+                owner: process.env.UPSTREAM_OWNER,
+                repo: process.env.UPSTREAM_REPO,
+              });
+
+              console.log(`✅ Can access upstream repo: ${data.full_name}`);
+              console.log(`   Visibility: ${data.private ? 'private' : 'public'}`);
+            } catch (err) {
+              console.error('❌ Cannot access upstream repo');
+              console.error('Status:', err.status);
+              console.error('Message:', err.message);
+              throw err;
+            }
+
+      # ------------------------------------------------------------
+      # 检查是否已有未合并 PR
+      # ------------------------------------------------------------
+      - name: Check existing PRs
+        if: steps.diff.outputs.no-changes == 'false'
+        id: pr-check
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT }}
+          script: |
+            const owner = process.env.UPSTREAM_OWNER;
+            const repo  = process.env.UPSTREAM_REPO;
+            const fork  = process.env.GITHUB_REPOSITORY;
+
             const { data: prs } = await github.rest.pulls.list({
-              owner: 'OpenRareDisease',
-              repo: 'info_platform',
+              owner,
+              repo,
               state: 'open',
             });
-            
-            // 检查是否有未合并的同步 PR（从当前 fork 创建的）
-            const [forkOwner] = process.env.GITHUB_REPOSITORY.split('/');
-            const syncPRs = prs.filter(pr => 
-              pr.head.repo.full_name === process.env.GITHUB_REPOSITORY &&
+
+            const existing = prs.find(pr =>
+              pr.head.repo.full_name === fork &&
               pr.head.ref === 'main'
             );
-            
-            if (syncPRs.length > 0) {
-              console.log(`⚠️ Found ${syncPRs.length} existing sync PR(s):`);
-              syncPRs.forEach(pr => {
-                console.log(`  - #${pr.number}: ${pr.title} (${pr.head.ref})`);
-              });
-              core.setOutput('has-open-pr', 'true');
-              core.setOutput('pr-number', syncPRs[0].number.toString());
+
+            if (existing) {
+              console.log(`⚠️ Existing PR found: #${existing.number}`);
+              core.setOutput('exists', 'true');
+              core.setOutput('number', existing.number.toString());
             } else {
-              console.log('✅ No existing sync PR found');
-              core.setOutput('has-open-pr', 'false');
+              console.log('✅ No existing PR found');
+              core.setOutput('exists', 'false');
             }
 
-      - name: Check PAT configuration
-        if: steps.check-changes.outputs.no-changes == 'false' && steps.check-prs.outputs.has-open-pr == 'false'
-        id: check-pat
-        run: |
-          echo "=== PAT Configuration Check ==="
-          echo "Repository: ${{ github.repository }}"
-          echo "Repository owner: ${{ github.repository_owner }}"
-          echo "Event name: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
-          echo "Check changes output: ${{ steps.check-changes.outputs.no-changes }}"
-          echo "Check PRs output: ${{ steps.check-prs.outputs.has-open-pr }}"
-          echo ""
-          
-          # 检查 PAT 是否存在且不为空
-          # 使用环境变量方式检查
-          PAT_VALUE="${{ secrets.PAT }}"
-          
-          # 调试：检查 secret 是否可访问（不输出实际值）
-          if [ -z "${PAT_VALUE}" ]; then
-            echo "❌ PAT secret is empty or not accessible!"
-            echo ""
-            echo "Debugging info:"
-            echo "  Secret name checked: PAT"
-            echo "  Secret exists check: $([ -n \"${{ secrets.PAT }}\" ] && echo 'yes' || echo 'no')"
-            echo "  Secret length: ${#PAT_VALUE}"
-            echo ""
-            echo "Possible reasons:"
-            echo "1. Secret name is incorrect (must be exactly 'PAT', case-sensitive)"
-            echo "2. Secret value is empty (secret exists but has no value)"
-            echo "3. Secret was just created and needs a few seconds to propagate"
-            echo "4. Workflow permissions may not allow access to secrets"
-            echo "5. Repository Actions settings may restrict secret access"
-            echo ""
-            echo "Please verify:"
-            echo "1. Go to: https://github.com/${{ github.repository }}/settings/secrets/actions"
-            echo "2. Click on PAT secret to edit"
-            echo "3. Check if Value field shows dots (••••) - this means it has a value"
-            echo "4. If Value field is blank, delete and recreate the secret"
-            echo ""
-            echo "Repository Actions settings:"
-            echo "- Go to: https://github.com/${{ github.repository }}/settings/actions"
-            echo "- Check 'Workflow permissions' - should allow 'Read and write permissions'"
-            echo "- Check 'Allow GitHub Actions to create and approve pull requests'"
-            exit 1
-          fi
-          
-          # 检查 PAT 长度（GitHub PAT 通常是 40+ 字符）
-          PAT_LENGTH=${#PAT_VALUE}
-          echo "✅ PAT secret is accessible"
-          echo "   PAT length: $PAT_LENGTH characters"
-          
-          if [ "$PAT_LENGTH" -lt 20 ]; then
-            echo "⚠️ Warning: PAT seems too short (expected 40+ chars)"
-            echo "   Please verify the token is complete"
-            exit 1
-          fi
-          
-          # 检查 PAT 格式
-          if [[ "$PAT_VALUE" =~ ^ghp_ ]]; then
-            echo "✅ PAT format looks correct (starts with 'ghp_')"
-          else
-            echo "⚠️ Warning: PAT doesn't start with 'ghp_'"
-            echo "   Expected format: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            echo "   Please verify it's a valid GitHub Personal Access Token"
-            exit 1
-          fi
-          
-          # 输出到 output（不包含实际 token）
-          echo "pat-configured=true" >> $GITHUB_OUTPUT
-          echo ""
-          echo "✅ PAT configuration check passed"
-
-      - name: Prepare PAT token
-        if: steps.check-changes.outputs.no-changes == 'false' && steps.check-prs.outputs.has-open-pr == 'false' && steps.check-pat.outputs.pat-configured == 'true'
-        id: prepare-token
-        run: |
-          # 清理 PAT token（去除前后空格和换行符）
-          PAT_TOKEN="${{ secrets.PAT }}"
-          PAT_TOKEN=$(echo "$PAT_TOKEN" | tr -d '\n\r' | xargs)
-          
-          echo "Token length after cleanup: ${#PAT_TOKEN}"
-          
-          if [ -z "$PAT_TOKEN" ] || [ ${#PAT_TOKEN} -lt 20 ]; then
-            echo "❌ PAT token is empty or too short after cleanup"
-            echo "Please check the secret value in repository settings"
-            exit 1
-          fi
-          
-          # 将清理后的 token 保存到 output（用于后续步骤）
-          echo "token=$PAT_TOKEN" >> $GITHUB_OUTPUT
-
-      - name: Create Pull Request using GitHub API
-        if: steps.check-changes.outputs.no-changes == 'false' && steps.check-prs.outputs.has-open-pr == 'false' && steps.check-pat.outputs.pat-configured == 'true' && steps.prepare-token.outcome == 'success'
-        id: create-pr
+      # ------------------------------------------------------------
+      # 创建 PR（关键：不再自己读 env token）
+      # ------------------------------------------------------------
+      - name: Create PR to upstream
+        if: steps.diff.outputs.no-changes == 'false' && steps.pr-check.outputs.exists == 'false'
         uses: actions/github-script@v7
         with:
-          # 使用清理后的 PAT token
-          github-token: ${{ steps.prepare-token.outputs.token }}
+          github-token: ${{ secrets.PAT }}
           script: |
-            // 检查 GITHUB_TOKEN（由 github-token 参数传入）
-            const token = process.env.GITHUB_TOKEN;
-            
-            console.log('Debug info:');
-            console.log('  Repository:', process.env.GITHUB_REPOSITORY);
-            console.log('  Event name:', process.env.GITHUB_EVENT_NAME);
-            console.log('  Token exists:', !!token);
-            console.log('  Token length:', token ? token.length : 0);
-            console.log('  Token prefix:', token ? token.substring(0, 4) : 'N/A');
-            
-            if (!token || token === '' || token.length < 20) {
-              const errorMsg = [
-                '❌ PAT token is not available in github-script action.',
-                '',
-                'This usually means:',
-                '1. PAT secret value is empty (secret exists but has no value)',
-                '2. Secret was not properly saved',
-                '3. Workflow was triggered in a way that secrets are not available',
-                '',
-                'Troubleshooting steps:',
-                '1. Go to: https://github.com/' + process.env.GITHUB_REPOSITORY + '/settings/secrets/actions',
-                '2. Click on PAT secret to edit it',
-                '3. Verify the Value field contains your token (should start with "ghp_" and be 40+ chars)',
-                '4. If empty, delete the secret and recreate it with the correct value',
-                '5. Make sure workflow is triggered by push to main, not by PR from fork',
-                '',
-                'Note: Check the "Check PAT configuration" step above for more details.'
-              ].join('\n');
-              
-              core.setFailed(errorMsg);
-              return;
-            }
-            
-            console.log('✅ PAT token is available and looks valid');
-            
-            const commitMessage = ${{ toJSON(github.event.head_commit.message) }};
-            const commitAuthor = ${{ toJSON(github.event.head_commit.author.name) }};
-            const commitTime = ${{ toJSON(github.event.head_commit.timestamp) }};
-            const commitSha = ${{ toJSON(github.sha) }};
-            const repo = ${{ toJSON(github.repository) }};
-            const beforeSha = ${{ toJSON(github.event.before) }};
-            const deploymentStatus = ${{ toJSON(needs.check-deployment.outputs.deployment-status) }};
-            const forkOwner = ${{ toJSON(github.repository_owner) }};
-            
-            // 获取部署状态文本
-            const deploymentStatusEmoji = deploymentStatus === 'success' ? '✅' : '⏰';
-            const deploymentStatusText = deploymentStatus === 'success' 
-              ? 'Vercel 部署已成功完成' 
-              : 'Vercel 部署状态检查超时（可能仍在进行中）';
-            
-            // 创建 PR body
-            const prBody = [
-              '## 🔄 自动同步更新',
-              '',
-              '此 PR 由 GitHub Actions 自动创建，用于同步下游仓库的更新。',
-              '',
-              '**来源仓库**: [' + repo + '](https://github.com/' + repo + ')',
-              '**提交**: [`' + commitSha.substring(0, 7) + '`](https://github.com/' + repo + '/commit/' + commitSha + ')',
-              '**提交信息**: ' + commitMessage,
-              '**作者**: ' + commitAuthor,
-              '**提交时间**: ' + commitTime,
-              '',
-              '**部署状态**: ' + deploymentStatusEmoji + ' ' + deploymentStatusText,
-              '',
-              '---',
-              '',
-              '### 📋 变更内容',
-              '',
-              '本次同步包含以下变更：',
-              '- 提交 SHA: `' + commitSha + '`',
-              '- 变更文件: 查看 [文件变更](https://github.com/' + repo + '/compare/' + beforeSha + '...' + commitSha + ')',
-              '',
-              '### ✅ 检查清单',
-              '',
-              '- [x] Vercel 部署状态已检查',
-              '- [ ] 代码已通过测试',
-              '- [ ] 已检查变更内容',
-              '- [ ] 确认无冲突',
-              '',
-              '> ⚠️ **注意**: 此 PR 由自动化流程创建，请仔细审查后再合并。',
-              '',
-              '---',
-              '',
-              '*此 PR 由 [GitHub Actions](' + process.env.GITHUB_SERVER_URL + '/' + repo + '/actions/runs/' + process.env.GITHUB_RUN_ID + ') 自动创建*'
-            ].join('\n');
-            
-            // PR 标题（只取第一行）
-            const prTitle = '🔄 Sync from downstream: ' + commitMessage.split('\n')[0];
-            
-            try {
-              console.log('Creating PR from fork: ' + forkOwner + ':main to OpenRareDisease/info_platform:main');
-              
-              // 先检查 PAT 是否有权限访问上游仓库
-              try {
-                const { data: upstreamRepo } = await github.rest.repos.get({
-                  owner: 'OpenRareDisease',
-                  repo: 'info_platform',
-                });
-                console.log('✅ Can access upstream repository: ' + upstreamRepo.full_name);
-                console.log('   Repository is ' + (upstreamRepo.private ? 'private' : 'public'));
-              } catch (accessError) {
-                if (accessError.status === 404) {
-                  core.setFailed('❌ Upstream repository not found. Please check the repository name: OpenRareDisease/info_platform');
-                  return;
-                } else if (accessError.status === 403) {
-                  core.setFailed('❌ Permission denied accessing upstream repository. Please ensure:\n' +
-                    '  1. PAT has "public_repo" scope (for public repos) or "repo" scope (for private repos)\n' +
-                    '  2. PAT owner is a member of OpenRareDisease organization (if it\'s an org repo)');
-                  return;
-                }
-                throw accessError;
-              }
-              
-              // 使用 GitHub API 创建 PR
-              const { data: pr } = await github.rest.pulls.create({
-                owner: 'OpenRareDisease',
-                repo: 'info_platform',
-                title: prTitle,
-                body: prBody,
-                head: forkOwner + ':main', // fork 仓库的 main 分支
-                base: 'main',
-              });
-              
-              console.log('✅ Successfully created PR #' + pr.number);
-              console.log('🔗 PR URL: ' + pr.html_url);
-              
-              // 添加标签（可选，失败不影响 PR 创建）
-              try {
-                await github.rest.issues.addLabels({
-                  owner: 'OpenRareDisease',
-                  repo: 'info_platform',
-                  issue_number: pr.number,
-                  labels: ['automated', 'sync'],
-                });
-                console.log('✅ Added labels: automated, sync');
-              } catch (labelError) {
-                console.log('⚠️ Failed to add labels (may not have permission, but PR was created): ' + labelError.message);
-                console.log('   This is not critical - PR was successfully created.');
-              }
-              
-              core.setOutput('pr-number', pr.number.toString());
-              core.setOutput('pr-url', pr.html_url);
-            } catch (error) {
-              console.error('❌ Failed to create PR:', error.message);
-              console.error('   Error status:', error.status);
-              console.error('   Error details:', JSON.stringify(error.response?.data || {}, null, 2));
-              
-              if (error.status === 403) {
-                const errorMsg = error.response?.data?.message || error.message;
-                let detailedMsg = '❌ Permission denied. Possible reasons:\n';
-                detailedMsg += '  1. PAT does not have required scope:\n';
-                detailedMsg += '     - For public repos: "public_repo" scope is required\n';
-                detailedMsg += '     - For private repos: "repo" scope is required\n';
-                detailedMsg += '  2. Upstream repository may not allow PRs from forks\n';
-                detailedMsg += '  3. PAT owner may not be a member of OpenRareDisease organization\n';
-                detailedMsg += '  4. Fork may not be properly synced with upstream\n';
-                detailedMsg += '\nOriginal error: ' + errorMsg;
-                core.setFailed(detailedMsg);
-              } else if (error.status === 422) {
-                const errorMsg = error.response?.data?.message || error.message;
-                const errors = error.response?.data?.errors || [];
-                let detailedMsg = '❌ PR creation failed (422 Unprocessable Entity):\n';
-                detailedMsg += '  ' + errorMsg + '\n';
-                if (errors.length > 0) {
-                  detailedMsg += '\n  Details:\n';
-                  errors.forEach(err => {
-                    detailedMsg += '    - ' + JSON.stringify(err) + '\n';
-                  });
-                }
-                detailedMsg += '\nPossible reasons:\n';
-                detailedMsg += '  1. PR already exists from this fork\n';
-                detailedMsg += '  2. No changes between fork and upstream\n';
-                detailedMsg += '  3. Branch name mismatch\n';
-                core.setFailed(detailedMsg);
-              } else if (error.status === 404) {
-                core.setFailed('❌ Repository not found. Please check:\n' +
-                  '  1. Repository name is correct: OpenRareDisease/info_platform\n' +
-                  '  2. Repository exists and is accessible\n' +
-                  '  3. Fork exists: ' + forkOwner + '/info_platform_fork');
-              } else {
-                core.setFailed('❌ Unexpected error: ' + error.message + '\nStatus: ' + error.status);
-                throw error;
-              }
-            }
+            const owner = process.env.UPSTREAM_OWNER;
+            const repo  = process.env.UPSTREAM_REPO;
+            const forkOwner = process.env.GITHUB_REPOSITORY_OWNER;
 
-      - name: Comment on existing PR
-        if: steps.check-changes.outputs.no-changes == 'false' && steps.check-prs.outputs.has-open-pr == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const prNumber = parseInt('${{ steps.check-prs.outputs.pr-number }}');
-            const commitMessage = ${{ toJSON(github.event.head_commit.message) }};
-            const commitSha = ${{ toJSON(github.sha) }};
-            const repo = ${{ toJSON(github.repository) }};
-            const beforeSha = ${{ toJSON(github.event.before) }};
-            const commitAuthor = ${{ toJSON(github.event.head_commit.author.name) }};
-            
-            const comment = [
-              '🔄 **自动更新通知**',
-              '',
-              '检测到新的提交，但已存在未合并的同步 PR #' + prNumber + '。',
-              '',
-              '请先合并或关闭现有 PR，然后再创建新的同步 PR。',
-              '',
-              '**新提交信息**:',
-              '- SHA: `' + commitSha.substring(0, 7) + '`',
-              '- 消息: ' + commitMessage,
-              '- 作者: ' + commitAuthor,
-              '',
-              '[查看变更](https://github.com/' + repo + '/compare/' + beforeSha + '...' + commitSha + ')'
-            ].join('\n');
-            
-            await github.rest.issues.createComment({
-              owner: 'OpenRareDisease',
-              repo: 'info_platform',
-              issue_number: prNumber,
-              body: comment
+            const sha = process.env.GITHUB_SHA;
+            const repoFull = process.env.GITHUB_REPOSITORY;
+
+            const title = `🔄 Sync from downstream (${sha.substring(0,7)})`;
+            const body = `
+            ## 🔄 自动同步更新
+
+            **来源仓库**: ${repoFull}
+            **提交 SHA**: \`${sha}\`
+
+            此 PR 由 GitHub Actions 自动创建。
+            `;
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner,
+              repo,
+              title,
+              body,
+              head: `${forkOwner}:main`,
+              base: 'main',
             });
-            
-            console.log(`✅ Commented on existing PR #${prNumber}`);
 
-      - name: Summary
-        if: steps.check-changes.outputs.no-changes == 'false'
-        run: |
-          echo "📊 Workflow Summary:"
-          echo "==================="
-          echo "Repository: ${{ github.repository }}"
-          echo "Commit SHA: ${{ github.sha }}"
-          echo "Deployment Status: ${{ needs.check-deployment.outputs.deployment-status }}"
-          echo ""
-          
-          if [ "${{ steps.check-prs.outputs.has-open-pr }}" == "true" ]; then
-            echo "⚠️ Existing PR found, commented on it instead of creating new one"
-            echo "PR Number: ${{ steps.check-prs.outputs.pr-number }}"
-            echo "PR URL: https://github.com/OpenRareDisease/info_platform/pull/${{ steps.check-prs.outputs.pr-number }}"
-          else
-            if [ -n "${{ steps.create-pr.outputs.pr-number }}" ]; then
-              echo "✅ Successfully created PR to upstream repository"
-              echo "PR Number: ${{ steps.create-pr.outputs.pr-number }}"
-              echo "PR URL: ${{ steps.create-pr.outputs.pr-url }}"
-            else
-              echo "❌ PR creation failed. Check the logs above for details."
-              echo "Common issues:"
-              echo "  1. PAT secret not configured"
-              echo "  2. PAT doesn't have 'public_repo' permission"
-              echo "  3. Upstream repository doesn't allow PRs from forks"
-            fi
-          fi
+            console.log(`✅ PR created: #${pr.number}`);
+            console.log(`🔗 ${pr.html_url}`);
 
-      - name: No changes message
-        if: steps.check-changes.outputs.no-changes == 'true'
-        run: |
-          echo "ℹ️ No changes detected, skipping PR creation"
+      # ------------------------------------------------------------
+      # 无变更提示
+      # ------------------------------------------------------------
+      - name: No changes
+        if: steps.diff.outputs.no-changes == 'true'
+        run: echo "ℹ️ Nothing to sync"
