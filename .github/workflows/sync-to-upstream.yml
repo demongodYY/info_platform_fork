@@ -13,10 +13,106 @@ env:
   UPSTREAM_BRANCH: main
 
 jobs:
-  sync-to-upstream:
-    name: Create PR to Upstream
+  check-deployment:
+    name: Wait for Vercel Deployment
     runs-on: ubuntu-latest
     if: github.repository_owner == 'demongodYY' # 只在下游仓库运行
+    outputs:
+      deployment-status: ${{ steps.check.outputs.status }}
+    steps:
+      - name: Check Vercel deployment status
+        id: check
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commitSha = '${{ github.sha }}';
+            const maxWaitTime = 10 * 60 * 1000; // 10 分钟
+            const checkInterval = 30 * 1000; // 30 秒检查一次
+            const startTime = Date.now();
+            
+            console.log(`🔍 Checking deployment status for commit: ${commitSha}`);
+            
+            while (Date.now() - startTime < maxWaitTime) {
+              try {
+                // 检查 GitHub Deployments API
+                const { data: deployments } = await github.rest.repos.listDeployments({
+                  owner: process.env.GITHUB_REPOSITORY_OWNER,
+                  repo: process.env.GITHUB_REPOSITORY.split('/')[1],
+                  sha: commitSha,
+                  per_page: 1,
+                });
+                
+                if (deployments.length > 0) {
+                  const deployment = deployments[0];
+                  console.log(`📦 Found deployment: ${deployment.id}`);
+                  
+                  // 检查 deployment status
+                  const { data: statuses } = await github.rest.repos.listDeploymentStatuses({
+                    owner: process.env.GITHUB_REPOSITORY_OWNER,
+                    repo: process.env.GITHUB_REPOSITORY.split('/')[1],
+                    deployment_id: deployment.id,
+                    per_page: 1,
+                  });
+                  
+                  if (statuses.length > 0) {
+                    const status = statuses[0];
+                    console.log(`📊 Deployment status: ${status.state}`);
+                    
+                    if (status.state === 'success') {
+                      console.log('✅ Deployment succeeded!');
+                      core.setOutput('status', 'success');
+                      return;
+                    } else if (status.state === 'failure' || status.state === 'error') {
+                      console.log(`❌ Deployment failed: ${status.state}`);
+                      core.setOutput('status', 'failure');
+                      return;
+                    }
+                  }
+                }
+                
+                // 也检查 commit status（Vercel 可能会设置）
+                const { data: statuses } = await github.rest.repos.getCombinedStatusForRef({
+                  owner: process.env.GITHUB_REPOSITORY_OWNER,
+                  repo: process.env.GITHUB_REPOSITORY.split('/')[1],
+                  ref: commitSha,
+                });
+                
+                const vercelStatus = statuses.statuses.find(s => 
+                  s.context.includes('vercel') || s.context.includes('Vercel')
+                );
+                
+                if (vercelStatus) {
+                  console.log(`📊 Vercel status: ${vercelStatus.state}`);
+                  if (vercelStatus.state === 'success') {
+                    console.log('✅ Vercel deployment succeeded!');
+                    core.setOutput('status', 'success');
+                    return;
+                  } else if (vercelStatus.state === 'failure' || vercelStatus.state === 'error') {
+                    console.log(`❌ Vercel deployment failed: ${vercelStatus.state}`);
+                    core.setOutput('status', 'failure');
+                    return;
+                  }
+                }
+                
+                console.log('⏳ Deployment in progress, waiting...');
+                await new Promise(resolve => setTimeout(resolve, checkInterval));
+              } catch (error) {
+                console.log(`⚠️ Error checking deployment: ${error.message}`);
+                // 继续等待
+                await new Promise(resolve => setTimeout(resolve, checkInterval));
+              }
+            }
+            
+            // 超时后，如果还没找到部署状态，假设成功（可能是 Vercel 还没创建 status）
+            console.log('⏰ Timeout reached, assuming deployment will succeed');
+            core.setOutput('status', 'timeout');
+
+  sync-to-upstream:
+    name: Create PR to Upstream
+    needs: check-deployment
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'demongodYY' && (needs.check-deployment.outputs.deployment-status == 'success' || needs.check-deployment.outputs.deployment-status == 'timeout')
     
     steps:
       - name: Checkout code
@@ -100,6 +196,13 @@ jobs:
             const repo = '${{ github.repository }}';
             const beforeSha = '${{ github.event.before }}';
             
+            // 获取部署状态
+            const deploymentStatus = '${{ needs.check-deployment.outputs.deployment-status }}';
+            const deploymentStatusEmoji = deploymentStatus === 'success' ? '✅' : '⏰';
+            const deploymentStatusText = deploymentStatus === 'success' 
+              ? 'Vercel 部署已成功完成' 
+              : 'Vercel 部署状态检查超时（可能仍在进行中）';
+            
             // 创建 PR 的 body
             const prBody = `## 🔄 自动同步更新
             
@@ -111,6 +214,8 @@ jobs:
             **作者**: ${commitAuthor}
             **提交时间**: ${commitTime}
             
+            **部署状态**: ${deploymentStatusEmoji} ${deploymentStatusText}
+            
             ---
             
             ### 📋 变更内容
@@ -121,6 +226,7 @@ jobs:
             
             ### ✅ 检查清单
             
+            - [x] Vercel 部署状态已检查
             - [ ] 代码已通过测试
             - [ ] 已检查变更内容
             - [ ] 确认无冲突
