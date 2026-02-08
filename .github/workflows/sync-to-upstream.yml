@@ -9,10 +9,10 @@ on:
     # 允许手动触发
 
 # 确保 workflow 有权限访问 secrets
+# 注意：secrets 的访问权限由仓库设置控制，不需要在 permissions 中声明
 permissions:
   contents: read
   pull-requests: write
-  secrets: read  # 明确声明需要读取 secrets 的权限
 
 env:
   UPSTREAM_REPO: OpenRareDisease/info_platform
