@@ -4,7 +4,7 @@
 
 🌐 **在线访问**: [www.raredisease.top](https://www.raredisease.top)
 
-> ⚠️ **注意**: 本项目是 [上游仓库](https://github.com/OpenRareDisease/info_platform) 的 fork，用于 Vercel 部署（免费版 Vercel 只能关联个人 private 仓库）。由于只有 repo owner 的提交才能触发 CD，开发流程为：**先在该仓库创建分支，提 PR 给 Owner → Owner 合并触发 CD → 再提 PR 给上游仓库**。详见 [开发流程](#-开发流程) 部分。
+> ⚠️ **注意**: 本项目是 [上游仓库](https://github.com/OpenRareDisease/info_platform) 的 fork，用于 Vercel 部署（免费版 Vercel 只能关联个人 private 仓库）。由于只有 repo owner 的提交才能触发 CD，开发流程为：**先在 [下游仓库](https://github.com/demongodYY/info_platform_fork) 仓库创建分支，提 PR 给 Owner → Owner 合并触发 CD → 再提 PR 给上游仓库**。详见 [开发流程](#-开发流程) 部分。
 
 ## 🏗️ 架构图
 
