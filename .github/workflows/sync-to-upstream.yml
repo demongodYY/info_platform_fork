@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  secrets: read  # 明确声明需要读取 secrets 的权限
 
 env:
   UPSTREAM_REPO: OpenRareDisease/info_platform
@@ -191,27 +192,34 @@ jobs:
         if: steps.check-changes.outputs.no-changes == 'false' && steps.check-prs.outputs.has-open-pr == 'false'
         id: check-pat
         run: |
-          # 检查 PAT 是否存在且不为空
-          # 注意：在 shell 中直接使用 ${{ secrets.PAT }} 可能有问题，使用环境变量更安全
-          PAT_VALUE="${{ secrets.PAT }}"
-          
           echo "=== PAT Configuration Check ==="
           echo "Repository: ${{ github.repository }}"
           echo "Repository owner: ${{ github.repository_owner }}"
           echo "Event name: ${{ github.event_name }}"
-          echo "Event type: ${{ github.event_name }}"
           echo "Ref: ${{ github.ref }}"
+          echo "Check changes output: ${{ steps.check-changes.outputs.no-changes }}"
+          echo "Check PRs output: ${{ steps.check-prs.outputs.has-open-pr }}"
           echo ""
           
-          # 检查 secret 是否可访问
-          if [ -z "${PAT_VALUE:-}" ]; then
+          # 检查 PAT 是否存在且不为空
+          # 使用环境变量方式检查
+          PAT_VALUE="${{ secrets.PAT }}"
+          
+          # 调试：检查 secret 是否可访问（不输出实际值）
+          if [ -z "${PAT_VALUE}" ]; then
             echo "❌ PAT secret is empty or not accessible!"
+            echo ""
+            echo "Debugging info:"
+            echo "  Secret name checked: PAT"
+            echo "  Secret exists check: $([ -n \"${{ secrets.PAT }}\" ] && echo 'yes' || echo 'no')"
+            echo "  Secret length: ${#PAT_VALUE}"
             echo ""
             echo "Possible reasons:"
             echo "1. Secret name is incorrect (must be exactly 'PAT', case-sensitive)"
             echo "2. Secret value is empty (secret exists but has no value)"
             echo "3. Secret was just created and needs a few seconds to propagate"
             echo "4. Workflow permissions may not allow access to secrets"
+            echo "5. Repository Actions settings may restrict secret access"
             echo ""
             echo "Please verify:"
             echo "1. Go to: https://github.com/${{ github.repository }}/settings/secrets/actions"
@@ -219,10 +227,10 @@ jobs:
             echo "3. Check if Value field shows dots (••••) - this means it has a value"
             echo "4. If Value field is blank, delete and recreate the secret"
             echo ""
-            echo "If secret exists with value but still not accessible:"
-            echo "- Wait 1-2 minutes after creating/updating secret"
-            echo "- Check repository Actions settings for workflow permissions"
-            echo "- Ensure workflow is triggered by push, not PR from fork"
+            echo "Repository Actions settings:"
+            echo "- Go to: https://github.com/${{ github.repository }}/settings/actions"
+            echo "- Check 'Workflow permissions' - should allow 'Read and write permissions'"
+            echo "- Check 'Allow GitHub Actions to create and approve pull requests'"
             exit 1
           fi
           
