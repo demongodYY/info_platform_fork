@@ -1,6 +1,8 @@
+import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  plugins: [vue()],
   test: {
     // 使用 happy-dom 作为 DOM 环境（比 jsdom 更快）
     environment: 'happy-dom',
@@ -38,6 +40,8 @@ export default defineConfig({
     alias: {
       '~': new URL('.', import.meta.url).pathname,
       '@': new URL('.', import.meta.url).pathname,
+      h3: new URL('./node_modules/.pnpm/h3@1.15.4/node_modules/h3/dist/index.mjs', import.meta.url)
+        .pathname,
     },
   },
 })

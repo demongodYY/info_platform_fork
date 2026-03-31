@@ -1,0 +1,69 @@
+分类	网站名称	网址	主要功能	覆盖范围	语言	备注
+药物批准信息查询	美国 FDA 孤儿药数据库	https://www.accessdata.fda.gov/scripts/opdlisting/oopd	可按产品名、赞助商、指定日期等检索	美国	英语/多语言辅助	支持下载 Excel
+药物批准信息查询	NMPA 审评报告	https://www.nmpa.gov.cn	中国药品审评审批信息，含罕见病药通道	中国	中文	2020 报告显示临床急需境外已上市新药 100% 按时完成审结
+药物批准信息查询	EMA 孤儿药与 PRIME	https://www.ema.europa.eu/en/our-work/medicines-development/rare-diseases	欧盟孤儿药指定、PRIME 评审和批准信息	欧盟	英语	2023 年授予 17 个孤儿药指定，提供加速审批通道
+药物资讯平台	OrphaNet	https://www.orpha.net	罕见疾病和孤儿药物综合信息库，含新闻、报告和活动	欧洲/全球	多语言	月均页面浏览量达 280 万，涵盖 6528 种罕见病
+药物资讯平台	DDW-Online	https://www.ddw-online.com	罕见病药物开发和行业动态新闻	全球	英语	2025 年报道生物技术行业欢迎罕见病药物开发计划
+药物资讯平台	BioBuzz	https://news.biobuzz.io	生物技术公司和罕见病药物研发进展报道	全球	英语	2025 年专题报道五家生物技术企业罕见病项目
+市场分析	ZS 罕见病创新分析	https://www.zs.com/insights/rare-disease-pharma-innovation	包含非肿瘤罕见病药物批准演变趋势、审批预测和管线分析	全球	英语	处方药销售 20% 势、审批预测和管线分析
+临床试验查询	ClinicalTrials.gov	https://clinicaltrials.gov	全球临床试验注册与检索	全球	英语	支持 400+ 国家/地区，含罕见病试验过滤
+临床试验查询	ChiCTR	http://www.chictr.org.cn	中国临床试验注册中心	中国	中文	国内罕见病试验最全来源
+患者援助	NORD 患者援助项目	https://rarediseases.org/patients/help-now/	美国罕见病患者经济与药物援助	美国	英语	涵盖 1200+ 种罕见病
+患者援助	中国医药援助工程	地方医保/民政公众号	各地罕见病医保与特殊门诊政策	中国	中文	需关注当地医保局通知
+药物数据库	DrugBank	https://go.drugbank.com	药物结构、靶点、相互作用等批量数据	全球	英语	提供开放 API
+药物数据库	Orphadata	http://www.orphadata.org	OrphaNet 结构化数据下载	全球	英语	每月更新，支持 JSON/XML
+研发管线	Evaluate Pharma	https://www.evaluate.com	罕见病药物市场与研发管线报告	全球	英语	需订阅
+研发管线	IQVIA 罕见病报告	https://www.iqvia.com	罕见病药物市场、准入与支付研究	全球	英语	需订阅
+研发管线	GlobalData 罕见病管线	https://www.globaldata.com	罕见病在研药物与竞争格局	全球	英语	需订阅
+研发管线	Pharmaprojects	https://pharmaintelligence.informa.com	全球在研药物管线数据库	全球	英语	需订阅
+新闻资讯	STAT News 罕见病频道	https://www.statnews.com/topic/rare-diseases	全球罕见病政策与研发新闻	全球	英语	免费浏览
+新闻资讯	BioWorld 罕见病	https://www.bioworld.com	罕见病并购、融资、上市动态	全球	英语	部分免费
+新闻资讯	FiercePharma 罕见病	https://www.fiercepharma.com	制药公司罕见药业务动态	全球	英语	免费浏览
+新闻资讯	Rare Disease Report	https://www.raredr.com	罕见病临床、监管与商业资讯	全球	英语	免费浏览
+学术资源	OMIM	https://omim.org	罕见病基因-表型关联数据库	全球	英语	免费
+学术资源	GeneReviews	https://www.ncbi.nlm.nih.gov/books/NBK1116/	罕见病临床与遗传学综述	全球	英语	免费
+学术资源	Orphanet Journal of Rare Diseases	https://ojrd.biomedcentral.com	同行评议罕见病研究期刊	全球	英语	开放获取
+学术资源	Journal of Rare Disorders	https://journals.sagepub.com/home/jrd	罕见病临床与转化研究	全球	英语	开放获取
+会议与社群	Global Genes 罕见病峰会	https://globalgenes.org/events	全球患者、研究者、企业年度峰会	全球	英语	每年 9 月
+会议与社群	ERD 欧洲罕见病大会	https://www.ehfg.org/erd	欧洲罕见病政策与研发论坛	欧盟	英语	每年 5 月
+会议与社群	China Rare Disease Summit	http://www.cord.org.cn	中国罕见病高峰论坛	中国	中文	每年 11 月
+会议与社群	BIO 罕见病专场	https://www.bio.org/events/bio-international-convention	生物技术大会罕见病分论坛	全球	英语	每年 6 月
+类别	平台名称	网址	主要功能	覆盖范围	语言	备注
+数据库/信息库	Orphanet	https://www.orpha.net	全病种罕见病百科、ORPHAcode、分类、基因-表型	全球	多语言	月均 280 万 PV，官方 ICD-10 对照
+数据库/信息库	NORD 罕见病数据库	https://rarediseases.org/rare-diseases	全病种简介、症状、诊疗、患者组织链接	美国	英语	与 Orphanet 互链，支持患者组织入驻
+数据库/信息库	RDDC 罕见病数据中心	http://rddc.cn	中国患者组织数据仓库、ORPHAcode 中文化	中国	中文	可一键生成中文科普页
+数据库/信息库	OMIM	https://omim.org	基因-表型-文献关联数据库	全球	英语	免费，更新即时
+数据库/信息库	GARD 遗传与罕见病数据库	https://rarediseases.info.nih.gov	NIH 官方百科，含双语摘要	美国	英语/西班牙语	可提交问题 5 工作日内邮件答复
+数据库/信息库	Genetic and Rare Diseases (GARD) Chinese	https://rarediseases.info.nih.gov/zh	上述数据库中文镜像	美国	中文	自动机翻+人工校对，持续扩充
+数据库/信息库	Orphadata	http://www.orphadata.org	Orphanet 结构化数据下载（疾病、基因、流行病学）	全球	英语	每月更新，JSON/XML/CSV
+数据库/信息库	DrugBank	https://go.drugbank.com	药物结构、靶点、相互作用、孤儿药标识	全球	英语	开放 API
+数据库/信息库	ClinicalTrials.gov	https://clinicaltrials.gov	全球临床试验注册与检索	全球	英语	支持罕见病过滤、结果导出
+数据库/信息库	ChiCTR	http://www.chictr.org.cn	中国临床试验注册中心	中国	中文	国内罕见病试验最全来源
+最新资讯	Global Genes	https://globalgenes.org	新闻、政策、患者故事、年会资讯	全球	英语	可订阅 RSS/邮件
+最新资讯	Rare Disease Day 官网	https://www.rarediseaseday.org	每年 2 月罕见病日最新活动与媒体包	全球	多语言	含中文版物料下载
+最新资讯	RDI 罕见病国际	https://www.rarediseasesinternational.org	全球政策简报、联合国诉求进展	全球	英语	可订阅月度简报
+最新资讯	新华社罕见病专题	http://www.xinhuanet.com/health/rd	国内政策解读、患者故事	中国	中文	权威信源，可转公众号
+最新资讯	CORD 微信公众号	微信搜索“罕见病发展中心”	每日推送国内资讯、药物上市、医保动态	中国	中文	可后台留言求助
+最新资讯	STAT News 罕见病频道	https://www.statnews.com/topic/rare-diseases	全球政策与研发新闻	全球	英语	免费浏览
+最新资讯	BioWorld 罕见病	https://www.bioworld.com	罕见病并购、融资、上市动态	全球	英语	部分免费
+药物研发/临床试验	Evaluate Pharma	https://www.evaluate.com	罕见病药物市场与研发管线报告	全球	英语	需订阅
+药物研发/临床试验	IQVIA 罕见病报告	https://www.iqvia.com	罕见病药物市场、准入与支付研究	全球	英语	需订阅
+药物研发/临床试验	Informa Pharmaprojects	https://pharmaintelligence.informa.com	全球在研药物管线数据库	全球	英语	需订阅
+药物研发/临床试验	FDA 孤儿药数据库	https://www.accessdata.fda.gov/scripts/opdlisting/oopd	美国孤儿药指定与批准清单	美国	英语	可下载 Excel
+药物研发/临床试验	EMA 孤儿药专栏	https://www.ema.europa.eu/en/our-work/medicines-development/rare-diseases	欧盟孤儿药指定与 PRIME 计划	欧盟	英语	可订阅审批提醒
+药物研发/临床试验	中国药监局审评报告	https://www.nmpa.gov.cn	含罕见病目录、优先审评公示	中国	中文	每月更新
+政策法规	EU Health Programme	https://ec.europa.eu/health/funding/eu4health_en	欧盟罕见病资金投入与政策文件	欧盟	英语	可下载年度工作计划
+政策法规	FDA ODD 指南	https://www.fda.gov/industry/developing-products-rare-diseases-conditions	美国孤儿药认定申请指南	美国	英语	含中文版要点摘要
+政策法规	 pediatric Research Equity Act 	https://www.fda.gov/industry/pea	美国儿科罕见病研究法规	美国	英语	与 ODD 交叉条款
+政策法规	中国药品管理法 2019 全文	http://www.npc.gov.cn	罕见病目录、优先审评、临床豁免条款	中国	中文	官方原文
+政策法规	国家药监局审评中心月报	https://www.cde.org.cn	每月罕见药受理、审评、审批统计	中国	中文	可下载 PDF
+政策法规	国家卫健委罕见病诊疗与保障专家委员会办公室文件	http://www.nhc.gov.cn	罕见病目录更新、诊疗指南	中国	中文	可订阅公文
+患者组织/社群	NORD 会员网络	https://rarediseases.org/organizations	美国 400+ 患者组织名录	美国	英语	可申请联盟
+患者组织/社群	CORD 中国罕见病联盟	http://www.card.org.cn	中国 100+ 患者组织名录	中国	中文	可申请入会
+患者组织/社群	RDI 全球患者组织地图	https://www.rarediseasesinternational.org/members	全球 200+ 患者组织联系方式	全球	英语	可提交组织信息
+患者组织/社群	APARDO 亚太罕见病组织联盟	https://www.apardo.org	亚太区域患者组织网络	亚太	英语	每年年会
+患者组织/社群	Global Genes 峰会	https://globalgenes.org/events	全球患者、研究者、企业年度峰会	全球	英语	每年 9 月
+患者组织/社群	China Rare Disease Summit	http://www.cord.org.cn	中国罕见病高峰论坛	中国	中文	每年 11 月
+患者组织/社群	European Conference on Rare Diseases & Orphan Products (ECRD)	https://www.ehfg.org/erd	欧洲最大罕见病政策与研发论坛	欧盟	英语	每年 5 月
+患者组织/社群	BIO 罕见病专场	https://www.bio.org/events/bio-international-convention	生物技术大会罕见病分论坛	全球	英语	每年 6 月
+患者组织/社群	Rare Disease Day 中国官方活动	https://www.rarediseaseday.org/china	每年 2 月多地患者故事直播	中国	中文	可申请物料包
