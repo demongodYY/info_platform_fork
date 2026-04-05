@@ -15,21 +15,10 @@ export function normalizeSearchQuery(query: string) {
   const trimmed = query.trim()
   const subject = findSubject(trimmed)
 
-  if (!subject) {
-    return {
-      resolvedSubject: '',
-      localQuery: trimmed,
-      effectiveQuery: trimmed,
-    }
-  }
-
-  const aliases = SUBJECT_ALIAS_MAP.find(entry => entry.canonical === subject)?.aliases || [subject]
-  const searchQuery = [aliases.join(' / '), trimmed].filter(Boolean).join(' | ')
-
   return {
     resolvedSubject: subject,
-    localQuery: subject,
-    effectiveQuery: searchQuery,
+    localQuery: subject || trimmed,
+    effectiveQuery: trimmed,
   }
 }
 
