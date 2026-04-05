@@ -1,4 +1,3 @@
-import { createError } from 'h3'
 import type { SearchMessageStatus } from '~/types/search'
 import type { RetrievedEvidenceItem } from './retrieval'
 import { buildStructuredFallbackAnswer } from './fallback-answer'
