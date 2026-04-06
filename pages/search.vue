@@ -79,6 +79,8 @@ function handleRetry() {
   @include desktop {
     padding: 0 $space-l 60px;
   }
+  display: flex;
+  flex-direction: column;
 }
 
 .search-page:not(.search-page--has-result) {
@@ -113,25 +115,25 @@ function handleRetry() {
 }
 
 .search-page__section--error {
-  padding: $space-l;
-  border-radius: $radius;
-  background: $c-red-bg;
-  border: 1px solid rgba($c-red, 0.2);
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
 }
 
 .search-page__error-msg {
-  color: $c-red;
+  color: $c-text-secondary;
   font-weight: 600;
   margin: 0 0 $space-m;
 }
 
 .search-page__retry-btn {
   padding: $space-s $space-l;
-  border: 1px solid $c-red;
+  border: 1px solid $c-text-secondary;
   border-radius: 6px;
   background: $c-card-bg;
-  color: $c-red;
+  color: $c-text-secondary;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
