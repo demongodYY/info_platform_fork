@@ -76,9 +76,16 @@ const visibleSources = computed(() =>
   font-weight: 500;
   cursor: pointer;
   transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover {
     background: $c-card-bg;
+  }
+
+  &:active,
+  &:focus {
+    background: none;
+    outline: none;
   }
 }
 </style>

@@ -186,7 +186,6 @@ describe('search.vue', () => {
 
     const input = wrapper.find('.search-bar__input').element as HTMLInputElement
     expect(input.disabled).toBe(true)
-    expect(wrapper.text()).toContain('搜索中…')
   })
 
   // ── Done state ──────────────────────────────────────────────────────

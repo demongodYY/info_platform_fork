@@ -14,7 +14,6 @@
           :value="modelValue"
           type="text"
           class="search-bar__input"
-          placeholder="例如：FSHD 最新治疗进展、庞贝病基因治疗、罕见病临床试验"
           :disabled="status === 'loading'"
           @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
         />
@@ -38,14 +37,13 @@
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
+            stroke-width="4"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <span>{{ status === 'loading' ? '搜索中…' : '搜索' }}</span>
         </button>
       </div>
     </form>
@@ -196,26 +194,22 @@ defineExpose({ inputRef })
 .search-bar__btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px $space-m;
-  margin: $space-xs;
+  justify-content: center;
+  padding: $space-s;
+  margin-right: $space-s;
   border: none;
-  border-radius: 6px;
-  background: $c-primary;
-  color: #fff;
-  font-weight: 600;
-  font-size: 14px;
+  background: none;
+  color: $c-primary;
   cursor: pointer;
-  transition: background 0.2s;
-  white-space: nowrap;
+  transition: color 0.2s;
   flex-shrink: 0;
 
   &:hover:not(:disabled) {
-    background: $c-primary-hover;
+    color: $c-primary-hover;
   }
 
   &:disabled {
-    opacity: 0.5;
+    color: $c-text-muted;
     cursor: not-allowed;
   }
 }
