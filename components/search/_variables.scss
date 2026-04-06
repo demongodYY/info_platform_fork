@@ -1,0 +1,32 @@
+//colors
+$c-primary: #2563eb;
+$c-primary-hover: #1d4ed8;
+$c-bg: #f9fafb;
+$c-text: #111827;
+$c-text-secondary: #6b7280;
+$c-text-muted: #9ca3af;
+$c-border: #e5e7eb;
+$c-card-bg: #ffffff;
+$c-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+$c-green: #059669;
+$c-green-bg: #ecfdf5;
+$c-red: #dc2626;
+$c-red-bg: #fef2f2;
+$c-amber: #d97706;
+
+//spacing
+$space-xs: 4px;
+$space-s: 8px;
+$space-m: 16px;
+$space-l: 24px;
+$space-xl: 32px;
+$radius: 8px;
+
+// breakpoint
+$bp-desktop: 769px;
+
+@mixin desktop {
+  @media (min-width: $bp-desktop) {
+    @content;
+  }
+}

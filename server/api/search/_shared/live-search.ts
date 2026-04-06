@@ -5,12 +5,12 @@ export async function searchWhitelistedSources(
   query: string,
   registry: SourceRegistryEntry[]
 ): Promise<RetrievedEvidenceItem[]> {
-  const prioritizedSources = rankSourcesForQuery(registry, query).slice(0, 8)
-  const queryVariants = buildSearchVariants(query)
+  const trimmedQuery = query.trim()
+  if (!trimmedQuery) return []
+
+  const prioritizedSources = rankSourcesForQuery(registry, trimmedQuery).slice(0, 8)
   const results = await Promise.allSettled(
-    prioritizedSources.flatMap(source =>
-      queryVariants.map(variant => searchSingleSource(variant, source))
-    )
+    prioritizedSources.map(source => searchSingleSource(trimmedQuery, source))
   )
 
   return dedupeEvidenceItems(flattenSettledResults(results)).slice(0, 8)
@@ -20,23 +20,17 @@ export async function searchInternetSupplementSources(
   query: string,
   registry: SourceRegistryEntry[]
 ): Promise<RetrievedEvidenceItem[]> {
+  const trimmedQuery = query.trim()
+  if (!trimmedQuery) return []
+
   const blockedDomains = new Set(registry.map(source => source.domain))
   const serpApiKey = process.env.SERPAPI_KEY
-  const queryVariants = buildSearchVariants(query)
 
   if (serpApiKey) {
-    const results = await Promise.allSettled(
-      queryVariants.map(variant =>
-        searchInternetWithSerpApiOrFallback(variant, blockedDomains, serpApiKey)
-      )
-    )
-    return dedupeEvidenceItems(flattenSettledResults(results)).slice(0, 8)
+    return searchInternetWithSerpApiOrFallback(trimmedQuery, blockedDomains, serpApiKey)
   }
 
-  const results = await Promise.allSettled(
-    queryVariants.map(variant => searchInternetWithDuckDuckGo(variant, blockedDomains))
-  )
-  return dedupeEvidenceItems(flattenSettledResults(results)).slice(0, 8)
+  return searchInternetWithDuckDuckGo(trimmedQuery, blockedDomains)
 }
 
 async function searchSingleSource(
@@ -171,29 +165,6 @@ interface SerpApiResponse {
     link?: string
     snippet?: string
   }>
-}
-
-export function buildSearchVariants(query: string) {
-  const normalizedQuery = query
-    .replace(/\s*\|\s*/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  const variants = [normalizedQuery]
-  const lowered = normalizedQuery.toLowerCase()
-
-  if (/\bfshd\b|facioscapulohumeral|面肩肱/.test(lowered)) {
-    variants.push('FSHD clinical trial')
-    variants.push('FSHD treatment progress')
-    variants.push('facioscapulohumeral muscular dystrophy treatment progress')
-    variants.push('面肩肱型肌营养不良 最新治疗进展')
-  }
-
-  if (/治疗|treatment|therapy|progress|进展|trial|临床试验/.test(lowered)) {
-    variants.push(`${normalizedQuery} latest treatment`)
-    variants.push(`${normalizedQuery} clinical trial`)
-  }
-
-  return [...new Set(variants.map(variant => variant.trim()).filter(Boolean))]
 }
 
 function parseSerpApiResults(

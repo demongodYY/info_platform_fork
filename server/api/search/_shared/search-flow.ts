@@ -126,7 +126,7 @@ export async function runSearchFlow({
     await onTrace?.([...searchTrace])
   }
 
-  const evidence = [...localEvidence, ...authorityEvidence, ...supplementEvidence].slice(0, 8)
+  const evidence = [...localEvidence, ...authorityEvidence, ...supplementEvidence]
   const answer = await generateAnswer({
     query,
     evidence,
