@@ -99,3 +99,12 @@ sw.*
 coverage/
 .nyc_output/
 *.lcov
+
+# openspec
+.claude
+.github
+
+# ui spec
+ui_spec
+
+responses/
