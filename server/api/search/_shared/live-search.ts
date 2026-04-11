@@ -24,10 +24,10 @@ export async function searchInternetSupplementSources(
   if (!trimmedQuery) return []
 
   const blockedDomains = new Set(registry.map(source => source.domain))
-  const serpApiKey = process.env.SERPAPI_KEY
+  const braveApiKey = process.env.BRAVE_API_KEY
 
-  if (serpApiKey) {
-    return searchInternetWithSerpApiOrFallback(trimmedQuery, blockedDomains, serpApiKey)
+  if (braveApiKey) {
+    return searchInternetWithBraveOrFallback(trimmedQuery, blockedDomains, braveApiKey)
   }
 
   return searchInternetWithDuckDuckGo(trimmedQuery, blockedDomains)
@@ -37,10 +37,10 @@ async function searchSingleSource(
   query: string,
   source: SourceRegistryEntry
 ): Promise<RetrievedEvidenceItem[]> {
-  const serpApiKey = process.env.SERPAPI_KEY
-  if (serpApiKey) {
+  const braveApiKey = process.env.BRAVE_API_KEY
+  if (braveApiKey) {
     try {
-      return await searchWithSerpApi(query, source, serpApiKey)
+      return await searchWithBrave(query, source, braveApiKey)
     } catch {
       return searchWithDuckDuckGo(query, source)
     }
@@ -49,69 +49,72 @@ async function searchSingleSource(
   return searchWithDuckDuckGo(query, source)
 }
 
-async function searchInternetWithSerpApiOrFallback(
+async function searchInternetWithBraveOrFallback(
   query: string,
   blockedDomains: Set<string>,
-  serpApiKey: string
+  braveApiKey: string
 ): Promise<RetrievedEvidenceItem[]> {
   try {
-    return await searchInternetWithSerpApi(query, blockedDomains, serpApiKey)
+    return await searchInternetWithBrave(query, blockedDomains, braveApiKey)
   } catch {
     return searchInternetWithDuckDuckGo(query, blockedDomains)
   }
 }
 
-async function searchWithSerpApi(
+async function searchWithBrave(
   query: string,
   source: SourceRegistryEntry,
-  serpApiKey: string
+  braveApiKey: string
 ): Promise<RetrievedEvidenceItem[]> {
   const searchQuery = new URLSearchParams({
-    engine: 'google',
     q: `site:${source.domain} ${query}`,
-    api_key: serpApiKey,
-    num: '5',
+    count: '5',
   })
 
-  const response = await fetch(`https://serpapi.com/search.json?${searchQuery.toString()}`, {
-    headers: {
-      Accept: 'application/json',
-    },
-  })
+  const response = await fetch(
+    `https://api.search.brave.com/res/v1/web/search?${searchQuery.toString()}`,
+    {
+      headers: {
+        Accept: 'application/json',
+        'X-Subscription-Token': braveApiKey,
+      },
+    }
+  )
 
   if (!response.ok) {
-    throw await createSearchError('SerpApi', response)
+    throw await createSearchError('Brave', response)
   }
 
-  const payload = (await response.json()) as SerpApiResponse
-  return parseSerpApiResults(payload, source)
+  const payload = (await response.json()) as BraveSearchResponse
+  return parseBraveResults(payload, source)
 }
 
-async function searchInternetWithSerpApi(
+async function searchInternetWithBrave(
   query: string,
   blockedDomains: Set<string>,
-  serpApiKey: string
+  braveApiKey: string
 ): Promise<RetrievedEvidenceItem[]> {
   const searchQuery = new URLSearchParams({
-    engine: 'google',
     q: query,
-    api_key: serpApiKey,
-    num: '6',
-    hl: 'zh-cn',
+    count: '6',
   })
 
-  const response = await fetch(`https://serpapi.com/search.json?${searchQuery.toString()}`, {
-    headers: {
-      Accept: 'application/json',
-    },
-  })
+  const response = await fetch(
+    `https://api.search.brave.com/res/v1/web/search?${searchQuery.toString()}`,
+    {
+      headers: {
+        Accept: 'application/json',
+        'X-Subscription-Token': braveApiKey,
+      },
+    }
+  )
 
   if (!response.ok) {
-    throw await createSearchError('SerpApi', response)
+    throw await createSearchError('Brave', response)
   }
 
-  const payload = (await response.json()) as SerpApiResponse
-  return parseInternetSerpApiResults(payload, blockedDomains)
+  const payload = (await response.json()) as BraveSearchResponse
+  return parseInternetBraveResults(payload, blockedDomains)
 }
 
 async function searchWithDuckDuckGo(
@@ -154,26 +157,30 @@ async function searchInternetWithDuckDuckGo(
   return parseInternetDuckDuckGoHtml(html, blockedDomains)
 }
 
-interface SerpApiResponse {
-  organic_results?: Array<{
-    title?: string
-    link?: string
-    snippet?: string
-  }>
-  news_results?: Array<{
-    title?: string
-    link?: string
-    snippet?: string
-  }>
+interface BraveSearchResponse {
+  web?: {
+    results?: Array<{
+      title?: string
+      url?: string
+      description?: string
+    }>
+  }
+  news?: {
+    results?: Array<{
+      title?: string
+      url?: string
+      description?: string
+    }>
+  }
 }
 
-function parseSerpApiResults(
-  payload: SerpApiResponse,
+function parseBraveResults(
+  payload: BraveSearchResponse,
   source: Pick<SourceRegistryEntry, 'name' | 'domain' | 'sourceType'>
 ): RetrievedEvidenceItem[] {
   const items: RetrievedEvidenceItem[] = []
-  for (const result of [...(payload.organic_results || []), ...(payload.news_results || [])]) {
-    const url = result.link || ''
+  for (const result of [...(payload.web?.results || []), ...(payload.news?.results || [])]) {
+    const url = result.url || ''
     if (!url.includes(source.domain)) continue
 
     items.push({
@@ -182,23 +189,23 @@ function parseSerpApiResults(
       sourceLabel: source.name,
       sourceUrl: url,
       sourceDomain: source.domain,
-      snippet: (result.snippet || '').trim(),
+      snippet: (result.description || '').trim(),
       publishedAt: null,
       title: (result.title || '').trim(),
-      content: (result.snippet || '').trim(),
+      content: (result.description || '').trim(),
     })
   }
 
   return items
 }
 
-function parseInternetSerpApiResults(
-  payload: SerpApiResponse,
+function parseInternetBraveResults(
+  payload: BraveSearchResponse,
   blockedDomains: Set<string>
 ): RetrievedEvidenceItem[] {
   const items: RetrievedEvidenceItem[] = []
-  for (const result of payload.organic_results || []) {
-    const url = result.link || ''
+  for (const result of payload.web?.results || []) {
+    const url = result.url || ''
     const domain = extractDomain(url)
     if (!url || !domain || isBlockedDomain(domain, blockedDomains)) continue
 
@@ -208,10 +215,10 @@ function parseInternetSerpApiResults(
       sourceLabel: prettifyDomain(domain),
       sourceUrl: url,
       sourceDomain: domain,
-      snippet: (result.snippet || '').trim(),
+      snippet: (result.description || '').trim(),
       publishedAt: null,
       title: (result.title || domain).trim(),
-      content: (result.snippet || '').trim(),
+      content: (result.description || '').trim(),
     })
   }
 

@@ -16,7 +16,7 @@
 OPENAI_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
 OPENAI_API_KEY=your_api_key
 MODEL_NAME=qwen-max
-SERPAPI_KEY=your_serpapi_key
+BRAVE_API_KEY=your_brave_api_key
 ```
 
 字段说明：
@@ -24,7 +24,7 @@ SERPAPI_KEY=your_serpapi_key
 - `OPENAI_API_BASE`: 大模型兼容接口地址
 - `OPENAI_API_KEY`: 大模型调用密钥
 - `MODEL_NAME`: 聚合整理时使用的模型名
-- `SERPAPI_KEY`: 联网搜索增强使用，建议配置
+- `BRAVE_API_KEY`: 联网搜索增强使用，建议配置
 
 ## 3. `.env` 配置方式
 
@@ -40,7 +40,7 @@ SERPAPI_KEY=your_serpapi_key
 OPENAI_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
 OPENAI_API_KEY=your_api_key
 MODEL_NAME=qwen-max
-SERPAPI_KEY=your_serpapi_key
+BRAVE_API_KEY=your_brave_api_key
 ```
 
 Nuxt 启动时会自动读取项目根目录下的 `.env`。
@@ -120,7 +120,7 @@ PATH="/opt/homebrew/Cellar/node@20/20.20.2/bin:$PATH" /opt/homebrew/Cellar/node@
 - 检查 `/Users/simonchou/JhmkProjects/info_platform/.env`
 - 确认启动前变量已经生效
 
-### 6.2 没配置 `SERPAPI_KEY`
+### 6.2 没配置 `BRAVE_API_KEY`
 
 现象：
 
@@ -128,7 +128,7 @@ PATH="/opt/homebrew/Cellar/node@20/20.20.2/bin:$PATH" /opt/homebrew/Cellar/node@
 
 处理：
 
-- 补充 `SERPAPI_KEY`
+- 补充 `BRAVE_API_KEY`
 
 ### 6.3 端口被占用
 

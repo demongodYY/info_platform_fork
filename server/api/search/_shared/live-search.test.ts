@@ -20,48 +20,33 @@ describe('searchWhitelistedSources', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     delete process.env.SERPAPI_KEY
+    delete process.env.BRAVE_API_KEY
   })
 
-  it('keeps successful SerpApi results when one variant is rate limited', async () => {
-    process.env.SERPAPI_KEY = 'test-key'
+  it('maps Brave API web results into authority evidence items', async () => {
+    process.env.BRAVE_API_KEY = 'test-key'
 
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            organic_results: [
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          web: {
+            results: [
               {
                 title: 'Working result',
-                link: 'https://rarediseases.org/working-result',
-                snippet: 'Useful summary',
+                url: 'https://rarediseases.org/working-result',
+                description: 'Useful summary',
               },
             ],
-          }),
-          {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          }
-        )
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: 'rate limited' }), {
-          status: 429,
-          headers: {
-            'Content-Type': 'application/json',
           },
-        })
-      )
-      .mockResolvedValue(
-        new Response(JSON.stringify({ organic_results: [] }), {
+        }),
+        {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
           },
-        })
+        }
       )
+    )
 
     vi.stubGlobal('fetch', fetchMock)
 
@@ -70,5 +55,15 @@ describe('searchWhitelistedSources', () => {
     expect(results).toHaveLength(1)
     expect(results[0]?.title).toBe('Working result')
     expect(results[0]?.sourceDomain).toBe('rarediseases.org')
+    expect(results[0]?.snippet).toBe('Useful summary')
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('https://api.search.brave.com/res/v1/web/search?'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: 'application/json',
+          'X-Subscription-Token': 'test-key',
+        }),
+      })
+    )
   })
 })
