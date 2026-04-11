@@ -1,19 +1,23 @@
-import type { SourceRegistryEntry } from '~/types/search'
+import type { SearchQueryAnalysis, SourceRegistryEntry } from '~/types/search'
 import type { RetrievedEvidenceItem } from './retrieval'
 
 export async function searchWhitelistedSources(
   query: string,
-  registry: SourceRegistryEntry[]
+  registry: SourceRegistryEntry[],
+  analysis?: SearchQueryAnalysis
 ): Promise<RetrievedEvidenceItem[]> {
   const trimmedQuery = query.trim()
   if (!trimmedQuery) return []
 
-  const prioritizedSources = rankSourcesForQuery(registry, trimmedQuery).slice(0, 8)
+  const braveApiKey = process.env.BRAVE_API_KEY
+  if (!braveApiKey) return []
+
+  const prioritizedSources = selectSourcesForQuery(registry, analysis)
   const results = await Promise.allSettled(
-    prioritizedSources.map(source => searchSingleSource(trimmedQuery, source))
+    prioritizedSources.map(source => searchWithBrave(trimmedQuery, source, braveApiKey, analysis))
   )
 
-  return dedupeEvidenceItems(flattenSettledResults(results)).slice(0, 8)
+  return dedupeEvidenceItems(flattenSettledResults(results))
 }
 
 export async function searchInternetSupplementSources(
@@ -27,47 +31,20 @@ export async function searchInternetSupplementSources(
   const braveApiKey = process.env.BRAVE_API_KEY
 
   if (braveApiKey) {
-    return searchInternetWithBraveOrFallback(trimmedQuery, blockedDomains, braveApiKey)
+    return searchInternetWithBrave(trimmedQuery, blockedDomains, braveApiKey)
   }
 
-  return searchInternetWithDuckDuckGo(trimmedQuery, blockedDomains)
-}
-
-async function searchSingleSource(
-  query: string,
-  source: SourceRegistryEntry
-): Promise<RetrievedEvidenceItem[]> {
-  const braveApiKey = process.env.BRAVE_API_KEY
-  if (braveApiKey) {
-    try {
-      return await searchWithBrave(query, source, braveApiKey)
-    } catch {
-      return searchWithDuckDuckGo(query, source)
-    }
-  }
-
-  return searchWithDuckDuckGo(query, source)
-}
-
-async function searchInternetWithBraveOrFallback(
-  query: string,
-  blockedDomains: Set<string>,
-  braveApiKey: string
-): Promise<RetrievedEvidenceItem[]> {
-  try {
-    return await searchInternetWithBrave(query, blockedDomains, braveApiKey)
-  } catch {
-    return searchInternetWithDuckDuckGo(query, blockedDomains)
-  }
+  return []
 }
 
 async function searchWithBrave(
   query: string,
   source: SourceRegistryEntry,
-  braveApiKey: string
+  braveApiKey: string,
+  analysis?: SearchQueryAnalysis
 ): Promise<RetrievedEvidenceItem[]> {
   const searchQuery = new URLSearchParams({
-    q: `site:${source.domain} ${query}`,
+    q: buildAuthorityQuery(source, query, analysis),
     count: '5',
   })
 
@@ -86,7 +63,7 @@ async function searchWithBrave(
   }
 
   const payload = (await response.json()) as BraveSearchResponse
-  return parseBraveResults(payload, source)
+  return parseBraveResults(payload, source, analysis)
 }
 
 async function searchInternetWithBrave(
@@ -117,46 +94,6 @@ async function searchInternetWithBrave(
   return parseInternetBraveResults(payload, blockedDomains)
 }
 
-async function searchWithDuckDuckGo(
-  query: string,
-  source: SourceRegistryEntry
-): Promise<RetrievedEvidenceItem[]> {
-  const searchQuery = encodeURIComponent(`site:${source.domain} ${query}`)
-  const response = await fetch(`https://html.duckduckgo.com/html/?q=${searchQuery}`, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    },
-  })
-
-  if (!response.ok) {
-    return []
-  }
-
-  const html = await response.text()
-  return parseDuckDuckGoHtml(html, source)
-}
-
-async function searchInternetWithDuckDuckGo(
-  query: string,
-  blockedDomains: Set<string>
-): Promise<RetrievedEvidenceItem[]> {
-  const searchQuery = encodeURIComponent(query)
-  const response = await fetch(`https://html.duckduckgo.com/html/?q=${searchQuery}`, {
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    },
-  })
-
-  if (!response.ok) {
-    return []
-  }
-
-  const html = await response.text()
-  return parseInternetDuckDuckGoHtml(html, blockedDomains)
-}
-
 interface BraveSearchResponse {
   web?: {
     results?: Array<{
@@ -176,12 +113,17 @@ interface BraveSearchResponse {
 
 function parseBraveResults(
   payload: BraveSearchResponse,
-  source: Pick<SourceRegistryEntry, 'name' | 'domain' | 'sourceType'>
+  source: Pick<SourceRegistryEntry, 'name' | 'domain' | 'sourceType' | 'url'>,
+  analysis?: SearchQueryAnalysis
 ): RetrievedEvidenceItem[] {
   const items: RetrievedEvidenceItem[] = []
-  for (const result of [...(payload.web?.results || []), ...(payload.news?.results || [])]) {
+  const rankedResults = [...(payload.web?.results || []), ...(payload.news?.results || [])].sort(
+    (a, b) => scoreResultForAnalysis(b, analysis) - scoreResultForAnalysis(a, analysis)
+  )
+  for (const result of rankedResults) {
     const url = result.url || ''
-    if (!url.includes(source.domain)) continue
+    if (!isMatchingSourceUrl(url, source)) continue
+    if (!isRelevantAuthorityResult(result, analysis)) continue
 
     items.push({
       sourceType: source.sourceType,
@@ -196,7 +138,7 @@ function parseBraveResults(
     })
   }
 
-  return items
+  return items.slice(0, maxResultsPerSource(analysis))
 }
 
 function parseInternetBraveResults(
@@ -239,119 +181,74 @@ function flattenSettledResults(results: PromiseSettledResult<RetrievedEvidenceIt
   return results.flatMap(result => (result.status === 'fulfilled' ? result.value : []))
 }
 
-function parseDuckDuckGoHtml(
-  html: string,
-  source: Pick<SourceRegistryEntry, 'name' | 'domain' | 'sourceType'>
-): RetrievedEvidenceItem[] {
-  const matches = [
-    ...html.matchAll(
-      /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g
-    ),
-  ]
+function selectSourcesForQuery(registry: SourceRegistryEntry[], analysis?: SearchQueryAnalysis) {
+  const buckets = buildSourceBuckets(analysis)
+  const selected = new Map<string, SourceRegistryEntry>()
 
-  const items: RetrievedEvidenceItem[] = []
-  for (const match of matches) {
-    const url = decodeHtml(match[1] || '')
-    if (!url.includes(source.domain)) continue
-
-    const title = stripTags(decodeHtml(match[2] || ''))
-    const snippet = stripTags(decodeHtml(match[3] || ''))
-    items.push({
-      sourceType: source.sourceType,
-      sourceTier: 'authority',
-      sourceLabel: source.name,
-      sourceUrl: url,
-      sourceDomain: source.domain,
-      snippet,
-      publishedAt: null,
-      title,
-      content: snippet,
-    })
+  for (const bucket of buckets) {
+    for (const source of sortSourcesForAnalysis(
+      registry.filter(entry => entry.sourceTypes.some(type => bucket.sourceTypes.includes(type))),
+      analysis
+    )) {
+      const sourceKey = buildSourceSelectionKey(source)
+      if (selected.has(sourceKey)) continue
+      selected.set(sourceKey, source)
+      if (
+        [...selected.values()].filter(entry =>
+          entry.sourceTypes.some(type => bucket.sourceTypes.includes(type))
+        ).length >= bucket.limit
+      ) {
+        break
+      }
+    }
   }
 
-  return items
-}
-
-function parseInternetDuckDuckGoHtml(
-  html: string,
-  blockedDomains: Set<string>
-): RetrievedEvidenceItem[] {
-  const matches = [
-    ...html.matchAll(
-      /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g
-    ),
-  ]
-
-  const items: RetrievedEvidenceItem[] = []
-  for (const match of matches) {
-    const url = decodeHtml(match[1] || '')
-    const domain = extractDomain(url)
-    if (!url || !domain || isBlockedDomain(domain, blockedDomains)) continue
-
-    const snippet = stripTags(decodeHtml(match[3] || ''))
-    items.push({
-      sourceType: 'news',
-      sourceTier: 'internet_supplement',
-      sourceLabel: prettifyDomain(domain),
-      sourceUrl: url,
-      sourceDomain: domain,
-      snippet,
-      publishedAt: null,
-      title: stripTags(decodeHtml(match[2] || '')) || prettifyDomain(domain),
-      content: snippet,
-    })
+  const allowsBackfill = !analysis || analysis.intent === 'disease_overview'
+  if (allowsBackfill) {
+    for (const source of [...registry].sort((a, b) => a.priority - b.priority)) {
+      const sourceKey = buildSourceSelectionKey(source)
+      if (selected.has(sourceKey)) continue
+      selected.set(sourceKey, source)
+      if (selected.size >= 10) break
+    }
   }
 
-  return items
+  return [...selected.values()]
 }
 
-function rankSourcesForQuery(registry: SourceRegistryEntry[], query: string) {
-  const lowered = query.toLowerCase()
+function sortSourcesForAnalysis(registry: SourceRegistryEntry[], analysis?: SearchQueryAnalysis) {
   return [...registry].sort(
-    (a, b) => scoreSource(b, lowered) - scoreSource(a, lowered) || a.priority - b.priority
+    (a, b) =>
+      scoreSourceForAnalysis(b, analysis) - scoreSourceForAnalysis(a, analysis) ||
+      a.priority - b.priority
   )
 }
 
-function scoreSource(source: SourceRegistryEntry, query: string) {
-  let score = 0
-  if (/trial|临床试验|nct/.test(query) && source.sourceType === 'clinical_trial') score += 10
-  if (/drug|药|approval|审批/.test(query) && source.sourceType === 'drug_approval') score += 10
-  if (
-    /policy|医保|援助|support|help/.test(query) &&
-    ['policy', 'patient_support'].includes(source.sourceType)
-  )
-    score += 8
-  if (
-    /symptom|disease|诊断|症状|基因/.test(query) &&
-    ['reference', 'news'].includes(source.sourceType)
-  )
-    score += 6
-  if (
-    /china|中国|国内/.test(query) &&
-    /china|中文|中国/i.test(`${source.region} ${source.language} ${source.notes || ''}`)
-  )
-    score += 4
-  return score
+function buildSourceBuckets(analysis?: SearchQueryAnalysis) {
+  const preferred = analysis?.preferredSourceTypes || ['disease_reference', 'treatment_update']
+  const deprioritized = new Set(analysis?.deprioritizedSourceTypes || [])
+
+  const buckets = preferred
+    .filter(type => !deprioritized.has(type))
+    .map(type => ({
+      sourceTypes: [type],
+      limit: bucketLimit(type, analysis?.intent),
+    }))
+
+  if (!analysis || analysis.intent === 'disease_overview') {
+    return buckets.concat(
+      [...deprioritized].map(type => ({
+        sourceTypes: [type],
+        limit: 1,
+      }))
+    )
+  }
+
+  return buckets
 }
 
 async function createSearchError(provider: string, response: Response) {
   return new Error(`${provider} search failed with ${response.status}`)
-}
-
-function stripTags(value: string) {
-  return value
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function decodeHtml(value: string) {
-  return value
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
 }
 
 function extractDomain(value: string) {
@@ -369,4 +266,173 @@ function prettifyDomain(domain: string) {
 function isBlockedDomain(domain: string, blockedDomains: Set<string>) {
   const normalized = domain.replace(/^www\./, '')
   return blockedDomains.has(domain) || blockedDomains.has(normalized)
+}
+
+function isMatchingSourceUrl(
+  resultUrl: string,
+  source: Pick<SourceRegistryEntry, 'domain' | 'url'>
+) {
+  if (!resultUrl.includes(source.domain)) return false
+
+  const sourcePath = normalizedPathname(source.url)
+  if (sourcePath === '/') return true
+
+  return normalizedPathname(resultUrl).startsWith(sourcePath)
+}
+
+function buildAuthorityQuery(
+  source: SourceRegistryEntry,
+  query: string,
+  analysis?: SearchQueryAnalysis
+) {
+  const baseTerms = analysis?.queryTerms?.length ? analysis.queryTerms.join(' ') : query
+  const intentTerms = buildIntentTerms(source, analysis)
+  return `site:${source.domain} ${baseTerms} ${intentTerms}`.trim()
+}
+
+function buildIntentTerms(source: SourceRegistryEntry, analysis?: SearchQueryAnalysis) {
+  const terms: string[] = []
+
+  if (analysis?.intent === 'treatment_update') {
+    terms.push('treatment', 'update', 'latest', 'progress')
+  }
+  if (analysis?.intent === 'clinical_trial') {
+    terms.push('clinical trial', 'recruiting')
+  }
+  if (analysis?.intent === 'drug_approval') {
+    terms.push('approval', 'FDA', 'EMA', 'NMPA')
+  }
+  if (analysis?.intent === 'research_progress') {
+    terms.push('research', 'publication')
+  }
+
+  return [...new Set(terms)].join(' ')
+}
+
+function bucketLimit(
+  type: SourceRegistryEntry['sourceTypes'][number],
+  intent?: SearchQueryAnalysis['intent']
+) {
+  if (type === 'treatment_update') return intent === 'treatment_update' ? 3 : 2
+  if (type === 'clinical_trial') return intent === 'clinical_trial' ? 3 : 2
+  if (type === 'drug_approval') return intent === 'drug_approval' ? 3 : 2
+  if (type === 'patient_org') return 2
+  if (type === 'research_publication') return 2
+  if (type === 'policy_access') return 2
+  return 2
+}
+
+function maxResultsPerSource(analysis?: SearchQueryAnalysis) {
+  return analysis?.intent === 'treatment_update' ? 2 : 3
+}
+
+function scoreResultForAnalysis(
+  result: { title?: string; url?: string; description?: string },
+  analysis?: SearchQueryAnalysis
+) {
+  const haystack =
+    `${result.title || ''} ${result.url || ''} ${result.description || ''}`.toLowerCase()
+  let score = 0
+
+  for (const term of analysis?.queryTerms || []) {
+    if (term && haystack.includes(term.toLowerCase())) score += 3
+  }
+
+  if (analysis?.intent === 'treatment_update') {
+    if (/update|latest|progress|trial|phase|approval|news/.test(haystack)) score += 8
+    if (/registry|federation|alliance|organisation|organization|directory|list\//.test(haystack))
+      score -= 10
+    if (/disease\/detail|patient-organisations|research-trials\/registry/.test(haystack))
+      score -= 12
+  }
+
+  if (analysis?.intent === 'clinical_trial' && /trial|recruiting|study|nct/.test(haystack)) {
+    score += 8
+  }
+
+  return score
+}
+
+function normalizedPathname(value: string) {
+  try {
+    const pathname = new URL(value).pathname || '/'
+    return pathname.endsWith('/') ? pathname : `${pathname}/`
+  } catch {
+    return '/'
+  }
+}
+
+function buildSourceSelectionKey(source: Pick<SourceRegistryEntry, 'domain' | 'url'>) {
+  return `${source.domain}${normalizedPathname(source.url)}`
+}
+
+function scoreSourceForAnalysis(source: SourceRegistryEntry, analysis?: SearchQueryAnalysis) {
+  if (!analysis) return 0
+
+  const haystack =
+    `${source.name} ${source.domain} ${source.notes || ''} ${source.url}`.toLowerCase()
+  let score = 0
+
+  for (const alias of [analysis.subject, ...analysis.aliases].filter(Boolean)) {
+    if (haystack.includes(alias.toLowerCase())) score += 20
+  }
+
+  for (const term of analysis.queryTerms || []) {
+    if (term && haystack.includes(term.toLowerCase())) score += 4
+  }
+
+  if (
+    analysis.intent === 'treatment_update' &&
+    /news|update|progress|clinical|trial/.test(haystack)
+  ) {
+    score += 6
+  }
+
+  return score
+}
+
+function isRelevantAuthorityResult(
+  result: { title?: string; url?: string; description?: string },
+  analysis?: SearchQueryAnalysis
+) {
+  if (!analysis) return true
+
+  const haystack =
+    `${result.title || ''} ${result.url || ''} ${result.description || ''}`.toLowerCase()
+  const aliases = [analysis.subject, ...analysis.aliases]
+    .filter(Boolean)
+    .map(item => item.toLowerCase())
+  const hasSubjectMatch = aliases.some(alias => haystack.includes(alias))
+
+  if (analysis.intent === 'treatment_update') {
+    if (!hasSubjectMatch) return false
+    if (isGenericTreatmentUpdatePage(result)) return false
+    return hasTreatmentUpdatePageSignal(result)
+  }
+
+  return true
+}
+
+function hasTreatmentUpdatePageSignal(result: {
+  title?: string
+  url?: string
+  description?: string
+}) {
+  const haystack =
+    `${result.title || ''} ${result.url || ''} ${result.description || ''}`.toLowerCase()
+  return /update|latest|progress|news|trial|phase|approval|approved|clinical|study|recruiting|pipeline|data|press[-\s]?release/.test(
+    haystack
+  )
+}
+
+function isGenericTreatmentUpdatePage(result: {
+  title?: string
+  url?: string
+  description?: string
+}) {
+  const haystack =
+    `${result.title || ''} ${result.url || ''} ${result.description || ''}`.toLowerCase()
+  return /\/entry\/|\/disease\/|\/disease\/detail|\/conditions\/|inventory|encyclopaedia|encyclopedia|database|classification|clinical synopsis|overview/.test(
+    haystack
+  )
 }

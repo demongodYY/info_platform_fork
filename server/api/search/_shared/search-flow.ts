@@ -1,4 +1,9 @@
-import type { SearchMessageStatus, SearchResponse, SearchTraceEntry } from '~/types/search'
+import type {
+  SearchMessageStatus,
+  SearchQueryAnalysis,
+  SearchResponse,
+  SearchTraceEntry,
+} from '~/types/search'
 import { normalizeSearchQuery } from './query-normalization'
 import { searchInternetSupplementSources, searchWhitelistedSources } from './live-search'
 import type { SearchRepositories } from './repositories'
@@ -9,6 +14,7 @@ interface SearchFlowDeps {
   query: string
   repositories: Pick<SearchRepositories, 'searchNotes' | 'searchCache'>
   registry: SourceRegistryEntry[]
+  analyzeQuery: (query: string) => Promise<SearchQueryAnalysis>
   detectSafetyRisk: (query: string) => Promise<{ risky: boolean; response?: string }>
   generateAnswer: (input: { query: string; evidence: RetrievedEvidenceItem[] }) => Promise<{
     content: string
@@ -21,6 +27,7 @@ export async function runSearchFlow({
   query,
   repositories,
   registry,
+  analyzeQuery,
   detectSafetyRisk,
   generateAnswer,
   onTrace,
@@ -37,6 +44,7 @@ export async function runSearchFlow({
   }
 
   const normalized = normalizeSearchQuery(query)
+  const analysis = await analyzeQuery(query)
   const searchTrace: SearchTraceEntry[] = []
   const [notesResult, cacheResult] = await Promise.allSettled([
     repositories.searchNotes(normalized.localQuery),
@@ -68,7 +76,7 @@ export async function runSearchFlow({
       title: note.title,
       content: note.content,
     })),
-  ].slice(0, 8)
+  ]
 
   searchTrace.push(buildLocalTrace(notesResult, cacheResult, notes.length, cache.length))
   await onTrace?.([...searchTrace])
@@ -80,7 +88,8 @@ export async function runSearchFlow({
     try {
       authorityEvidence = await searchWhitelistedSources(
         normalized.effectiveQuery || query,
-        registry
+        registry,
+        analysis
       )
       searchTrace.push({
         key: 'authority-search',

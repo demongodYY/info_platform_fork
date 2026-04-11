@@ -139,7 +139,9 @@ export function createSearchRepositories(supabase: DbClient): SearchRepositories
         id: asString(row.id),
         name: asString(row.name),
         domain: asString(row.domain),
+        url: asString(row.url) || `https://${asString(row.domain)}`,
         sourceType: asSearchSourceType(row.source_type),
+        sourceTypes: asAuthoritySourceTypes(row.source_types, row.source_type),
         region: asString(row.region),
         language: asString(row.language),
         priority: typeof row.priority === 'number' ? row.priority : Number(row.priority || 0),
@@ -168,4 +170,33 @@ function asNullableString(value: unknown) {
 
 function asSearchSourceType(value: unknown): SearchCacheEntry['sourceType'] {
   return typeof value === 'string' ? (value as SearchCacheEntry['sourceType']) : 'reference'
+}
+
+function asAuthoritySourceTypes(
+  sourceTypes: unknown,
+  sourceType: unknown
+): SourceRegistryEntry['sourceTypes'] {
+  if (Array.isArray(sourceTypes)) {
+    return sourceTypes.filter(
+      item => typeof item === 'string'
+    ) as SourceRegistryEntry['sourceTypes']
+  }
+
+  const normalized = typeof sourceType === 'string' ? sourceType : 'reference'
+  switch (normalized) {
+    case 'clinical_trial':
+      return ['clinical_trial']
+    case 'drug_approval':
+      return ['drug_approval']
+    case 'policy':
+      return ['policy_access']
+    case 'patient_support':
+      return ['patient_org']
+    case 'news':
+      return ['treatment_update']
+    case 'reference':
+    case 'disease_database':
+    default:
+      return ['disease_reference']
+  }
 }

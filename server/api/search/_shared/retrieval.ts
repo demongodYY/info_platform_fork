@@ -67,7 +67,7 @@ export async function retrieveSearchEvidence(
       title: note.title,
       content: note.content,
     })),
-  ].slice(0, 8)
+  ]
 
   if (localEvidence.length > 0) {
     return {
@@ -98,7 +98,7 @@ export async function retrieveSearchEvidence(
         searchTrace: [],
       }
     : liveResultRaw
-  const liveEvidence = liveResult.evidence.slice(0, 8)
+  const liveEvidence = liveResult.evidence
 
   return {
     evidence: liveEvidence,
@@ -110,7 +110,7 @@ export async function retrieveSearchEvidence(
             {
               key: 'local-notes',
               label: '站内内容检索',
-              status: 'empty',
+              status: 'empty' as const,
               detail: 'notes 0 条，cache 0 条',
             },
           ]),
