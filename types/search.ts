@@ -33,6 +33,7 @@ export type AuthoritySourceType = (typeof AUTHORITY_SOURCE_TYPES)[number]
 export type SearchQueryIntent = (typeof SEARCH_QUERY_INTENTS)[number]
 export type SearchSourceTier = 'authority' | 'internet_supplement'
 export type SearchTraceStatus = 'success' | 'empty' | 'error'
+export type SourceExplainStatus = 'success' | 'unavailable'
 
 export interface SearchSource {
   title: string
@@ -59,6 +60,20 @@ export interface SearchResponse {
   messageStatus: SearchMessageStatus
   sources: SearchSource[]
   searchTrace: SearchTraceEntry[]
+}
+
+export interface SourceExplainRequest {
+  title: string
+  sourceUrl: string
+  sourceLabel: string
+  sourceDomain: string
+  snippet: string
+}
+
+export interface SourceExplainResponse {
+  status: SourceExplainStatus
+  summary: string
+  matchedUrl?: string | null
 }
 
 export interface SearchCacheEntry {
