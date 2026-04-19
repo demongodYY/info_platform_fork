@@ -3,10 +3,22 @@ import { normalizeSearchQuery } from './query-normalization'
 
 export function buildSearchPrompt(input: { query: string; evidence: RetrievedEvidenceItem[] }) {
   const normalized = normalizeSearchQuery(input.query)
-  const authorityEvidence = input.evidence.filter(item => item.sourceTier !== 'internet_supplement')
+  const knowledgeBaseEvidence = input.evidence.filter(
+    item => item.sourceTier !== 'internet_supplement' && item.sourceLabel.includes('站内内容')
+  )
+  const authorityEvidence = input.evidence.filter(
+    item => item.sourceTier !== 'internet_supplement' && !item.sourceLabel.includes('站内内容')
+  )
   const internetSupplementEvidence = input.evidence.filter(
     item => item.sourceTier === 'internet_supplement'
   )
+
+  const knowledgeBase = knowledgeBaseEvidence
+    .map(
+      item =>
+        `[站内内容｜${item.sourceLabel}] ${item.title}\nURL: ${item.sourceUrl}\n摘要: ${item.snippet}\n内容: ${item.content.slice(0, 400)}`
+    )
+    .join('\n\n')
 
   const evidence = authorityEvidence
     .map(
@@ -30,6 +42,7 @@ export function buildSearchPrompt(input: { query: string; evidence: RetrievedEvi
 - 不提供诊断或处方级建议
 - 明确指出信息边界
 - 结论必须尽量基于给定证据
+- 站内内容是高优先级证据；引用病友经验或心理支持类内容时，明确它不是医学结论
 - 优先使用权威来源得出结论
 - 如果用了互联网补充信息，要明确说这是补充参考
 - 如果没有证据，不要编造具体药名、技术名或研究项目名
@@ -47,6 +60,9 @@ ${normalized.resolvedSubject || '未明确'}
 
 推荐检索表达：
 ${normalized.effectiveQuery || input.query}
+
+站内内容证据：
+${knowledgeBase || '暂无站内内容证据'}
 
 权威来源证据：
 ${evidence || '暂无权威证据'}
