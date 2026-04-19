@@ -33,49 +33,60 @@ export async function explainSource(
     return UNAVAILABLE_RESPONSE
   }
 
+  const generateSummary =
+    options.generateSummary ||
+    (async (prompt: string) => {
+      const result = await generateSearchAnswer(prompt)
+      return result.content
+    })
+
   try {
     const context = await fetchBraveContext(input, braveApiKey)
     const matched = pickBestMatch(sourceUrl, context.grounding?.generic || [], input.title)
 
     if (!matched) {
-      return UNAVAILABLE_RESPONSE
+      return summarizeSourceContent(input, input.snippet, sourceUrl, generateSummary)
     }
 
-    const content = matched.snippets.join('\n')
-    if (!content.trim()) {
-      return UNAVAILABLE_RESPONSE
-    }
-
-    const generateSummary =
-      options.generateSummary ||
-      (async (prompt: string) => {
-        const result = await generateSearchAnswer(prompt)
-        return result.content
-      })
-
-    const summary = (
-      await generateSummary(
-        buildSourceExplainPrompt({
-          title: input.title,
-          sourceLabel: input.sourceLabel,
-          sourceUrl,
-          snippet: input.snippet,
-          content,
-        })
-      )
-    ).trim()
-
-    if (!summary) {
-      return UNAVAILABLE_RESPONSE
-    }
-
-    return {
-      status: 'success',
-      summary,
-      matchedUrl: matched.url,
-    }
+    return summarizeSourceContent(input, matched.snippets.join('\n'), matched.url, generateSummary)
   } catch {
+    return summarizeSourceContent(input, input.snippet, sourceUrl, generateSummary).catch(
+      () => UNAVAILABLE_RESPONSE
+    )
+  }
+}
+
+async function summarizeSourceContent(
+  input: SourceExplainRequest,
+  content: string,
+  matchedUrl: string,
+  generateSummary: (prompt: string) => Promise<string>
+): Promise<SourceExplainResponse> {
+  const sourceUrl = input.sourceUrl.trim()
+  if (!content.trim()) {
     return UNAVAILABLE_RESPONSE
+  }
+
+  const summary = (
+    await generateSummary(
+      buildSourceExplainPrompt({
+        title: input.title,
+        sourceLabel: input.sourceLabel,
+        sourceUrl,
+        snippet: input.snippet,
+        content,
+      })
+    )
+  ).trim()
+
+  if (!summary) {
+    return UNAVAILABLE_RESPONSE
+  }
+
+  return {
+    status: 'success',
+    summary,
+    matchedUrl,
   }
 }
 

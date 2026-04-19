@@ -81,7 +81,7 @@ describe('explainSource', () => {
     expect(generateSummary).toHaveBeenCalledWith(expect.stringContaining('这是第一段正文片段'))
   })
 
-  it('returns unavailable when Brave does not return a matching URL', async () => {
+  it('returns unavailable when Brave does not return a matching URL or fallback snippet', async () => {
     process.env.BRAVE_API_KEY = 'brave-key'
 
     vi.stubGlobal(
@@ -109,11 +109,58 @@ describe('explainSource', () => {
       )
     )
 
-    const result = await explainSource(baseInput, {
-      generateSummary: vi.fn(),
-    })
+    const result = await explainSource(
+      {
+        ...baseInput,
+        snippet: '',
+      },
+      {
+        generateSummary: vi.fn(),
+      }
+    )
 
     expect(result.status).toBe('unavailable')
     expect(result.summary).toBe('暂时无法解读')
+  })
+
+  it('falls back to the supplied source snippet when Brave does not return a matching URL', async () => {
+    process.env.BRAVE_API_KEY = 'brave-key'
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            grounding: {
+              generic: [
+                {
+                  url: 'https://zgddek.com/article/another-page',
+                  title: '别的文章',
+                  snippets: ['没有命中当前来源链接'],
+                },
+              ],
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+      )
+    )
+
+    const generateSummary = vi
+      .fn()
+      .mockResolvedValue('这条来源主要在讲庞贝病诊断和治疗进展的大致信息。')
+
+    const result = await explainSource(baseInput, {
+      generateSummary,
+    })
+
+    expect(result.status).toBe('success')
+    expect(result.matchedUrl).toBe(baseInput.sourceUrl)
+    expect(generateSummary).toHaveBeenCalledWith(expect.stringContaining(baseInput.snippet))
   })
 })
