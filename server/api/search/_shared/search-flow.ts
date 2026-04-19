@@ -12,7 +12,7 @@ import type { RetrievedEvidenceItem } from './retrieval'
 
 interface SearchFlowDeps {
   query: string
-  repositories: Pick<SearchRepositories, 'searchNotes' | 'searchCache'>
+  repositories: Pick<SearchRepositories, 'searchNotes' | 'searchCache' | 'searchKnowledgeBase'>
   registry: SourceRegistryEntry[]
   analyzeQuery: (query: string) => Promise<SearchQueryAnalysis>
   detectSafetyRisk: (query: string) => Promise<{ risky: boolean; response?: string }>
@@ -46,14 +46,18 @@ export async function runSearchFlow({
   const normalized = normalizeSearchQuery(query)
   const analysis = await analyzeQuery(query)
   const searchTrace: SearchTraceEntry[] = []
-  const [notesResult, cacheResult] = await Promise.allSettled([
+  const knowledgeQuery = normalized.effectiveQuery || query
+  const [notesResult, cacheResult, knowledgeResult] = await Promise.allSettled([
     repositories.searchNotes(normalized.localQuery),
     repositories.searchCache(normalized.localQuery),
+    repositories.searchKnowledgeBase(knowledgeQuery, analysis),
   ])
 
   const notes = notesResult.status === 'fulfilled' ? notesResult.value : []
   const cache = cacheResult.status === 'fulfilled' ? cacheResult.value : []
+  const knowledge = knowledgeResult.status === 'fulfilled' ? knowledgeResult.value : []
   const localEvidence: RetrievedEvidenceItem[] = [
+    ...knowledge,
     ...cache.map(entry => ({
       sourceType: entry.sourceType,
       sourceTier: 'authority' as const,
@@ -78,62 +82,69 @@ export async function runSearchFlow({
     })),
   ]
 
-  searchTrace.push(buildLocalTrace(notesResult, cacheResult, notes.length, cache.length))
+  searchTrace.push(
+    buildLocalTrace(
+      notesResult,
+      cacheResult,
+      knowledgeResult,
+      notes.length,
+      cache.length,
+      knowledge.length
+    )
+  )
   await onTrace?.([...searchTrace])
 
   let authorityEvidence: RetrievedEvidenceItem[] = []
   let supplementEvidence: RetrievedEvidenceItem[] = []
 
-  if (localEvidence.length === 0) {
-    try {
-      authorityEvidence = await searchWhitelistedSources(
-        normalized.effectiveQuery || query,
-        registry,
-        analysis
-      )
-      searchTrace.push({
-        key: 'authority-search',
-        label: '权威来源搜索',
-        status: authorityEvidence.length > 0 ? 'success' : 'empty',
-        detail:
-          authorityEvidence.length > 0
-            ? `命中 ${authorityEvidence.length} 条结果`
-            : '未命中可引用权威结果',
-      })
-    } catch (error: unknown) {
-      searchTrace.push({
-        key: 'authority-search',
-        label: '权威来源搜索',
-        status: 'error',
-        detail: getErrorMessage(error),
-      })
-    }
-    await onTrace?.([...searchTrace])
-
-    try {
-      supplementEvidence = await searchInternetSupplementSources(
-        normalized.effectiveQuery || query,
-        registry
-      )
-      searchTrace.push({
-        key: 'internet-search',
-        label: '互联网补充搜索',
-        status: supplementEvidence.length > 0 ? 'success' : 'empty',
-        detail:
-          supplementEvidence.length > 0
-            ? `命中 ${supplementEvidence.length} 条结果`
-            : '未命中补充网页结果',
-      })
-    } catch (error: unknown) {
-      searchTrace.push({
-        key: 'internet-search',
-        label: '互联网补充搜索',
-        status: 'error',
-        detail: getErrorMessage(error),
-      })
-    }
-    await onTrace?.([...searchTrace])
+  try {
+    authorityEvidence = await searchWhitelistedSources(
+      normalized.effectiveQuery || query,
+      registry,
+      analysis
+    )
+    searchTrace.push({
+      key: 'authority-search',
+      label: '权威来源搜索',
+      status: authorityEvidence.length > 0 ? 'success' : 'empty',
+      detail:
+        authorityEvidence.length > 0
+          ? `命中 ${authorityEvidence.length} 条结果`
+          : '未命中可引用权威结果',
+    })
+  } catch (error: unknown) {
+    searchTrace.push({
+      key: 'authority-search',
+      label: '权威来源搜索',
+      status: 'error',
+      detail: getErrorMessage(error),
+    })
   }
+  await onTrace?.([...searchTrace])
+
+  try {
+    supplementEvidence = await searchInternetSupplementSources(
+      normalized.effectiveQuery || query,
+      registry
+    )
+    searchTrace.push({
+      key: 'internet-search',
+      label: '互联网补充搜索',
+      status: supplementEvidence.length > 0 ? 'success' : 'empty',
+      detail:
+        supplementEvidence.length > 0
+          ? `命中 ${supplementEvidence.length} 条结果`
+          : '未命中补充网页结果',
+    })
+  } catch (error: unknown) {
+    searchTrace.push({
+      key: 'internet-search',
+      label: '互联网补充搜索',
+      status: 'error',
+      detail: getErrorMessage(error),
+    })
+  }
+  await onTrace?.([...searchTrace])
 
   const evidence = [...localEvidence, ...authorityEvidence, ...supplementEvidence]
   const answer = await generateAnswer({
@@ -163,15 +174,21 @@ export async function runSearchFlow({
 function buildLocalTrace(
   notesResult: PromiseSettledResult<Array<unknown>>,
   cacheResult: PromiseSettledResult<Array<unknown>>,
+  knowledgeResult: PromiseSettledResult<Array<unknown>>,
   notesLength: number,
-  cacheLength: number
+  cacheLength: number,
+  knowledgeLength: number
 ): SearchTraceEntry {
-  if (notesResult.status === 'rejected' || cacheResult.status === 'rejected') {
+  if (
+    notesResult.status === 'rejected' ||
+    cacheResult.status === 'rejected' ||
+    knowledgeResult.status === 'rejected'
+  ) {
     return {
       key: 'local-notes',
-      label: '站内内容检索',
+      label: '站内知识库检索',
       status: 'error',
-      detail: [notesResult, cacheResult]
+      detail: [notesResult, cacheResult, knowledgeResult]
         .filter(result => result.status === 'rejected')
         .map(result => getErrorMessage((result as PromiseRejectedResult).reason))
         .join(' | '),
@@ -180,9 +197,12 @@ function buildLocalTrace(
 
   return {
     key: 'local-notes',
-    label: '站内内容检索',
-    status: notesLength + cacheLength > 0 ? 'success' : 'empty',
-    detail: `notes ${notesLength} 条，cache ${cacheLength} 条`,
+    label: '站内知识库检索',
+    status: notesLength + cacheLength + knowledgeLength > 0 ? 'success' : 'empty',
+    detail:
+      notesLength + cacheLength + knowledgeLength > 0
+        ? `命中 ${notesLength + cacheLength + knowledgeLength} 条结果`
+        : '未命中知识库结果',
   }
 }
 
