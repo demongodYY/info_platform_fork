@@ -1,6 +1,6 @@
 import { access, readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import type { SourceRegistryEntry } from '~/types/search'
+import type { AuthoritySourceType, SourceRegistryEntry } from '~/types/search'
 import type { SearchRepositories } from './repositories'
 
 export async function loadEnabledSourceRegistry(
@@ -45,13 +45,13 @@ async function resolveRareInfoListPath(cwd: string) {
   throw new Error('Could not locate rare_info_list.txt from current workspace')
 }
 
-function parseRareInfoList(content: string): SourceRegistryEntry[] {
+export function parseRareInfoList(content: string): SourceRegistryEntry[] {
   const lines = content
     .split('\n')
     .map(line => line.trim())
     .filter(Boolean)
 
-  const byDomain = new Map<string, SourceRegistryEntry>()
+  const bySourceKey = new Map<string, SourceRegistryEntry>()
 
   for (const line of lines.slice(1)) {
     const columns = line.split('\t')
@@ -67,29 +67,102 @@ function parseRareInfoList(content: string): SourceRegistryEntry[] {
       continue
     }
 
-    if (byDomain.has(domain)) continue
+    const nextSourceTypes = mapCategoryToAuthoritySourceTypes(category, name, notes)
+    const nextType = mapAuthoritySourceTypesToPrimary(nextSourceTypes)
+    const sourceKey = buildSourceRegistryKey(domain, url)
+    const existing = bySourceKey.get(sourceKey)
 
-    byDomain.set(domain, {
-      id: domain,
+    if (existing) {
+      const mergedSourceTypes = [...new Set([...existing.sourceTypes, ...nextSourceTypes])]
+      const preferredType = mapAuthoritySourceTypesToPrimary(mergedSourceTypes)
+      bySourceKey.set(sourceKey, {
+        ...existing,
+        name: pickPreferredValue(existing.name, name),
+        url: pickPreferredUrl(existing.url, url),
+        sourceType: preferredType,
+        sourceTypes: mergedSourceTypes,
+        region: pickPreferredValue(existing.region, region),
+        language: pickPreferredValue(existing.language, language),
+        notes: pickPreferredNotes(existing.notes, notes),
+      })
+      continue
+    }
+
+    bySourceKey.set(sourceKey, {
+      id: sourceKey,
       name,
       domain,
-      sourceType: mapCategoryToSourceType(category),
+      url,
+      sourceType: nextType,
+      sourceTypes: nextSourceTypes,
       region,
       language,
-      priority: byDomain.size + 1,
+      priority: bySourceKey.size + 1,
       enabled: true,
       notes: notes || null,
     })
   }
 
-  return [...byDomain.values()]
+  return [...bySourceKey.values()]
 }
 
-function mapCategoryToSourceType(category: string): SourceRegistryEntry['sourceType'] {
-  if (/临床试验/i.test(category)) return 'clinical_trial'
-  if (/药物|审批/i.test(category)) return 'drug_approval'
-  if (/政策/i.test(category)) return 'policy'
-  if (/患者|社群|援助/i.test(category)) return 'patient_support'
-  if (/数据库|信息库|学术/i.test(category)) return 'reference'
+function mapCategoryToAuthoritySourceTypes(category: string, name: string, notes: string) {
+  const combined = `${category} ${name} ${notes}`
+  const sourceTypes = new Set<AuthoritySourceType>()
+
+  if (/临床试验|trial/i.test(combined)) sourceTypes.add('clinical_trial')
+  if (/药物|审批|prime|fda|ema|nmpa/i.test(combined)) sourceTypes.add('drug_approval')
+  if (/政策|法规|医保|准入/i.test(combined)) sourceTypes.add('policy_access')
+  if (/患者|社群|组织|联盟|基金会|援助|support/i.test(combined)) sourceTypes.add('patient_org')
+  if (/期刊|文献|学术|journal|pubmed|gene/i.test(combined)) sourceTypes.add('research_publication')
+  if (/资讯|新闻|progress|update|news/i.test(combined)) sourceTypes.add('treatment_update')
+  if (/数据库|信息库|百科|omim|gard|orphanet|genereviews/i.test(combined))
+    sourceTypes.add('disease_reference')
+
+  if (sourceTypes.size === 0) {
+    sourceTypes.add('treatment_update')
+  }
+
+  return [...sourceTypes]
+}
+
+function mapAuthoritySourceTypesToPrimary(
+  sourceTypes: AuthoritySourceType[]
+): SourceRegistryEntry['sourceType'] {
+  if (sourceTypes.includes('disease_reference')) return 'reference'
+  if (sourceTypes.includes('research_publication')) return 'reference'
+  if (sourceTypes.includes('clinical_trial')) return 'clinical_trial'
+  if (sourceTypes.includes('drug_approval')) return 'drug_approval'
+  if (sourceTypes.includes('policy_access')) return 'policy'
+  if (sourceTypes.includes('patient_org')) return 'patient_support'
   return 'news'
+}
+
+function pickPreferredValue(current: string, next: string) {
+  return current || next
+}
+
+function pickPreferredNotes(current: string | null, next: string) {
+  return current || next || null
+}
+
+function pickPreferredUrl(current: string, next: string) {
+  const currentPath = safePathname(current)
+  const nextPath = safePathname(next)
+  if (currentPath === '/' && nextPath !== '/') return next
+  if (nextPath.length > currentPath.length) return next
+  return current
+}
+
+function safePathname(value: string) {
+  try {
+    return new URL(value).pathname || '/'
+  } catch {
+    return '/'
+  }
+}
+
+function buildSourceRegistryKey(domain: string, url: string) {
+  const path = safePathname(url)
+  return `${domain}${path === '/' ? '' : path}`
 }

@@ -22,6 +22,7 @@
 新闻资讯	Rare Disease Report	https://www.raredr.com	罕见病临床、监管与商业资讯	全球	英语	免费浏览
 学术资源	OMIM	https://omim.org	罕见病基因-表型关联数据库	全球	英语	免费
 学术资源	GeneReviews	https://www.ncbi.nlm.nih.gov/books/NBK1116/	罕见病临床与遗传学综述	全球	英语	免费
+学术资源	PubMed	https://pubmed.ncbi.nlm.nih.gov	生物医学论文检索，可按疾病、治疗、临床试验筛选	全球	英语	官方 NCBI 检索入口
 学术资源	Orphanet Journal of Rare Diseases	https://ojrd.biomedcentral.com	同行评议罕见病研究期刊	全球	英语	开放获取
 学术资源	Journal of Rare Disorders	https://journals.sagepub.com/home/jrd	罕见病临床与转化研究	全球	英语	开放获取
 会议与社群	Global Genes 罕见病峰会	https://globalgenes.org/events	全球患者、研究者、企业年度峰会	全球	英语	每年 9 月
@@ -35,6 +36,7 @@
 数据库/信息库	OMIM	https://omim.org	基因-表型-文献关联数据库	全球	英语	免费，更新即时
 数据库/信息库	GARD 遗传与罕见病数据库	https://rarediseases.info.nih.gov	NIH 官方百科，含双语摘要	美国	英语/西班牙语	可提交问题 5 工作日内邮件答复
 数据库/信息库	Genetic and Rare Diseases (GARD) Chinese	https://rarediseases.info.nih.gov/zh	上述数据库中文镜像	美国	中文	自动机翻+人工校对，持续扩充
+数据库/信息库	MedlinePlus Genetics	https://medlineplus.gov/genetics/	NIH 面向大众的遗传病与罕见病基础知识库	美国	英语/西班牙语	适合疾病概览与遗传背景说明
 数据库/信息库	Orphadata	http://www.orphadata.org	Orphanet 结构化数据下载（疾病、基因、流行病学）	全球	英语	每月更新，JSON/XML/CSV
 数据库/信息库	DrugBank	https://go.drugbank.com	药物结构、靶点、相互作用、孤儿药标识	全球	英语	开放 API
 数据库/信息库	ClinicalTrials.gov	https://clinicaltrials.gov	全球临床试验注册与检索	全球	英语	支持罕见病过滤、结果导出
@@ -42,6 +44,7 @@
 最新资讯	Global Genes	https://globalgenes.org	新闻、政策、患者故事、年会资讯	全球	英语	可订阅 RSS/邮件
 最新资讯	Rare Disease Day 官网	https://www.rarediseaseday.org	每年 2 月罕见病日最新活动与媒体包	全球	多语言	含中文版物料下载
 最新资讯	RDI 罕见病国际	https://www.rarediseasesinternational.org	全球政策简报、联合国诉求进展	全球	英语	可订阅月度简报
+最新资讯	FSHD Society	https://www.fshdsociety.org	FSHD 专病组织新闻、研究资助、临床项目更新	全球	英语	对 FSHD 等专病进展检索更高相关
 最新资讯	新华社罕见病专题	http://www.xinhuanet.com/health/rd	国内政策解读、患者故事	中国	中文	权威信源，可转公众号
 最新资讯	CORD 微信公众号	微信搜索“罕见病发展中心”	每日推送国内资讯、药物上市、医保动态	中国	中文	可后台留言求助
 最新资讯	STAT News 罕见病频道	https://www.statnews.com/topic/rare-diseases	全球政策与研发新闻	全球	英语	免费浏览
@@ -61,6 +64,7 @@
 患者组织/社群	NORD 会员网络	https://rarediseases.org/organizations	美国 400+ 患者组织名录	美国	英语	可申请联盟
 患者组织/社群	CORD 中国罕见病联盟	http://www.card.org.cn	中国 100+ 患者组织名录	中国	中文	可申请入会
 患者组织/社群	RDI 全球患者组织地图	https://www.rarediseasesinternational.org/members	全球 200+ 患者组织联系方式	全球	英语	可提交组织信息
+患者组织/社群	Muscular Dystrophy Association	https://www.mda.org	肌营养不良及相关罕见神经肌病组织，含疾病介绍与研究动态	美国	英语	对神经肌病类问题有较高相关性
 患者组织/社群	APARDO 亚太罕见病组织联盟	https://www.apardo.org	亚太区域患者组织网络	亚太	英语	每年年会
 患者组织/社群	Global Genes 峰会	https://globalgenes.org/events	全球患者、研究者、企业年度峰会	全球	英语	每年 9 月
 患者组织/社群	China Rare Disease Summit	http://www.cord.org.cn	中国罕见病高峰论坛	中国	中文	每年 11 月

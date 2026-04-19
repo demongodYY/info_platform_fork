@@ -5,6 +5,7 @@ import { loadEnabledSourceRegistry } from './_shared/source-registry'
 import { buildSearchPrompt } from './_shared/prompting'
 import { buildFallbackSearchAnswer, generateSearchAnswer } from './_shared/llm'
 import { detectSearchSafetyRisk } from './_shared/safety'
+import { analyzeSearchQuery } from './_shared/query-analysis'
 import { runSearchFlow } from './_shared/search-flow'
 import type { Database } from '~/types/database.types'
 import type { SearchResponse, SearchTraceEntry } from '~/types/search'
@@ -57,6 +58,7 @@ export default defineEventHandler(async event => {
             query,
             repositories,
             registry,
+            analyzeQuery: analyzeSearchQuery,
             detectSafetyRisk: detectSearchSafetyRisk,
             generateAnswer: async ({ query, evidence }) => {
               try {

@@ -22,6 +22,17 @@ export function normalizeSearchQuery(query: string) {
   }
 }
 
+export function getSubjectAliases(subject: string) {
+  const normalized = subject.trim().toLowerCase()
+  const entry = SUBJECT_ALIAS_MAP.find(
+    item =>
+      item.canonical.toLowerCase() === normalized ||
+      item.aliases.some(alias => alias.toLowerCase() === normalized)
+  )
+
+  return entry ? [...entry.aliases] : subject.trim() ? [subject.trim()] : []
+}
+
 function findSubject(message: string) {
   const lowered = message.toLowerCase()
   for (const entry of SUBJECT_ALIAS_MAP) {
