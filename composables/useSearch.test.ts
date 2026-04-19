@@ -27,7 +27,7 @@ function mockFetchStream(events: string[], status = 200) {
 }
 
 const traceEvent: SearchTraceEntry[] = [
-  { key: 'local-notes', label: '站内内容检索', status: 'empty', detail: 'notes 0 条，cache 0 条' },
+  { key: 'local-notes', label: '站内知识库检索', status: 'empty', detail: '未命中知识库结果' },
 ]
 
 const resultEvent: SearchResponse = {

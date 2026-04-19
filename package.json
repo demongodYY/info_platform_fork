@@ -4,6 +4,8 @@
   "scripts": {
     "build": "nuxt build",
     "prebuild": "node server/scripts/import-articles.js",
+    "import:knowledge": "python3 server/scripts/import-knowledge-base.py",
+    "import:knowledge:dry-run": "python3 server/scripts/import-knowledge-base.py --dry-run",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

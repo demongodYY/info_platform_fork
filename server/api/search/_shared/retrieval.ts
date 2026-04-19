@@ -35,7 +35,7 @@ export async function retrieveSearchEvidence(
   if (notesResult.status === 'rejected' || cacheResult.status === 'rejected') {
     searchTrace.push({
       key: 'local-notes',
-      label: '站内内容检索',
+      label: '站内知识库检索',
       status: 'error',
       detail: [notesResult, cacheResult]
         .filter(result => result.status === 'rejected')
@@ -78,9 +78,9 @@ export async function retrieveSearchEvidence(
         : [
             {
               key: 'local-notes',
-              label: '站内内容检索',
+              label: '站内知识库检索',
               status: 'success',
-              detail: `notes ${notes.length} 条，cache ${cache.length} 条`,
+              detail: `命中 ${notes.length + cache.length} 条结果`,
             },
           ],
     }
@@ -109,9 +109,9 @@ export async function retrieveSearchEvidence(
         : [
             {
               key: 'local-notes',
-              label: '站内内容检索',
+              label: '站内知识库检索',
               status: 'empty' as const,
-              detail: 'notes 0 条，cache 0 条',
+              detail: '未命中知识库结果',
             },
           ]),
       ...liveResult.searchTrace,
