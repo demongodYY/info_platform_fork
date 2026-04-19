@@ -37,4 +37,20 @@ describe('parseRareInfoList', () => {
       ])
     )
   })
+
+  it('classifies society-style specialist sources as patient organizations and updates', () => {
+    const content = [
+      '分类\t网站名称\t网址\t主要功能\t覆盖范围\t语言\t备注',
+      '最新资讯\tFSHD Society\thttps://www.fshdsociety.org\tFSHD 专病组织新闻、研究资助、临床项目更新\t全球\t英语\t对 FSHD 等专病进展检索更高相关',
+    ].join('\n')
+
+    const registry = parseRareInfoList(content)
+
+    expect(registry[0]).toEqual(
+      expect.objectContaining({
+        sourceType: 'patient_support',
+        sourceTypes: ['patient_org', 'treatment_update'],
+      })
+    )
+  })
 })

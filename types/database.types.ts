@@ -132,6 +132,53 @@ export interface Database {
           created_at?: string
         }
       }
+      source_registry: {
+        Row: {
+          id: string
+          name: string
+          domain: string
+          url: string
+          source_type: string
+          source_types: string[]
+          region: string
+          language: string
+          priority: number
+          enabled: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          domain: string
+          url: string
+          source_type: string
+          source_types?: string[]
+          region?: string
+          language?: string
+          priority?: number
+          enabled?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          domain?: string
+          url?: string
+          source_type?: string
+          source_types?: string[]
+          region?: string
+          language?: string
+          priority?: number
+          enabled?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

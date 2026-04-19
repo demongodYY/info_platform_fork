@@ -57,7 +57,7 @@ export function parseRareInfoList(content: string): SourceRegistryEntry[] {
     const columns = line.split('\t')
     if (columns.length < 6) continue
 
-    const [category, name, url, , region, language, notes = ''] = columns
+    const [category, name, url, description = '', region, language, notes = ''] = columns
     if (!url.startsWith('http')) continue
 
     let domain = ''
@@ -67,7 +67,7 @@ export function parseRareInfoList(content: string): SourceRegistryEntry[] {
       continue
     }
 
-    const nextSourceTypes = mapCategoryToAuthoritySourceTypes(category, name, notes)
+    const nextSourceTypes = mapCategoryToAuthoritySourceTypes(category, name, description, notes)
     const nextType = mapAuthoritySourceTypesToPrimary(nextSourceTypes)
     const sourceKey = buildSourceRegistryKey(domain, url)
     const existing = bySourceKey.get(sourceKey)
@@ -106,14 +106,20 @@ export function parseRareInfoList(content: string): SourceRegistryEntry[] {
   return [...bySourceKey.values()]
 }
 
-function mapCategoryToAuthoritySourceTypes(category: string, name: string, notes: string) {
-  const combined = `${category} ${name} ${notes}`
+function mapCategoryToAuthoritySourceTypes(
+  category: string,
+  name: string,
+  description: string,
+  notes: string
+) {
+  const combined = `${category} ${name} ${description} ${notes}`
   const sourceTypes = new Set<AuthoritySourceType>()
 
   if (/临床试验|trial/i.test(combined)) sourceTypes.add('clinical_trial')
   if (/药物|审批|prime|fda|ema|nmpa/i.test(combined)) sourceTypes.add('drug_approval')
   if (/政策|法规|医保|准入/i.test(combined)) sourceTypes.add('policy_access')
-  if (/患者|社群|组织|联盟|基金会|援助|support/i.test(combined)) sourceTypes.add('patient_org')
+  if (/患者|社群|组织|协会|联盟|基金会|援助|society|association|foundation|support/i.test(combined))
+    sourceTypes.add('patient_org')
   if (/期刊|文献|学术|journal|pubmed|gene/i.test(combined)) sourceTypes.add('research_publication')
   if (/资讯|新闻|progress|update|news/i.test(combined)) sourceTypes.add('treatment_update')
   if (/数据库|信息库|百科|omim|gard|orphanet|genereviews/i.test(combined))
