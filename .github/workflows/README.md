@@ -1,16 +1,10 @@
-# GitHub Actions
+# CI/CD
 
-## ci-cd.yml
+单一 workflow：[ci-cd.yml](./ci-cd.yml)
 
-| Job       | 说明                                                                 |
-| --------- | -------------------------------------------------------------------- |
-| `quality` | lint + test                                                          |
-| `deploy`  | 仅 upstream `main`：SSH 到轻量服务器 → `git pull` → Docker build/run |
+- **quality**：lint + test（PR / push / fork 同步）
+- **deploy**：仅 `OpenRareDisease/info_platform` 的 `main` push（SSH + Docker）
 
-部署目录：`/home/info_platform`（与腾讯 Lighthouse 引导一致）。
+Fork 的 [sync-to-upstream.yml](./sync-to-upstream.yml) 调用本文件并设 `skip_deploy: true`，只跑检查。
 
-## sync-to-upstream.yml
-
-Fork 调用 `ci-cd.yml` 且 `skip_deploy: true`，只做 CI，再向上游开 PR。
-
-详见 [docs/deploy-cloud.md](../../docs/deploy-cloud.md)。
+配置见 [docs/deploy-cloud.md](../../docs/deploy-cloud.md)。

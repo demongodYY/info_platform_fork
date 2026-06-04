@@ -2,7 +2,7 @@
 
 仓库：[OpenRareDisease/info_platform](https://github.com/OpenRareDisease/info_platform)
 
-Workflow：[`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml) — 同一 run 内先 `quality`（lint/test），通过后 `deploy`（SSH + Docker）。
+Workflow：[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — 同一 run 内先复用 `ci.yml`（lint/test），通过后 `deploy`（SSH + Docker）。`sync-to-upstream.yml` 仅调用 `ci.yml`，不使用 `secrets`。
 
 ## 服务器要求
 

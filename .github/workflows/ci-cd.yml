@@ -4,9 +4,9 @@ on:
   workflow_call:
     inputs:
       skip_deploy:
-        description: Run lint/test only (used by fork sync workflow)
+        description: Lint/test only (fork sync)
         type: boolean
-        default: true
+        default: false
   push:
     branches: [main]
   pull_request:
@@ -60,35 +60,17 @@ jobs:
       HOST_PORT: ${{ vars.APP_PORT || '3000' }}
 
     steps:
-      - name: Check DEPLOY_HOST is configured
-        if: ${{ vars.DEPLOY_HOST == '' && secrets.DEPLOY_HOST == '' }}
-        run: |
-          echo "::error::Set Variable DEPLOY_HOST (e.g. 119.29.130.172) on this repository."
-          exit 1
-
-      - name: Check DEPLOY_USER is configured
-        if: ${{ vars.DEPLOY_USER == '' && secrets.DEPLOY_USER == '' }}
-        run: |
-          echo "::error::Set Secret DEPLOY_USER (e.g. root) on OpenRareDisease/info_platform."
-          exit 1
-
-      - name: Check DEPLOY_KEY is configured
-        if: ${{ secrets.DEPLOY_KEY == '' }}
-        run: |
-          echo "::error::Set Secret DEPLOY_KEY (SSH private key) on this repository."
-          exit 1
-
       - name: Pull latest code on server
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
-          username: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |
             set -euo pipefail
             if [ ! -d "${{ env.APP_DIR }}/.git" ]; then
-              echo "Clone repo first on the server:" >&2
+              echo "Clone on server first:" >&2
               echo "  git clone https://github.com/OpenRareDisease/info_platform.git ${{ env.APP_DIR }}" >&2
               exit 1
             fi
@@ -116,8 +98,8 @@ jobs:
           POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
         with:
-          host: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
-          username: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,POSTGRES_DATABASE,POSTGRES_HOST,POSTGRES_PASSWORD,POSTGRES_PRISMA_URL,POSTGRES_URL,POSTGRES_URL_NON_POOLING,POSTGRES_USER
@@ -153,8 +135,8 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         with:
-          host: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
-          username: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY
@@ -168,8 +150,8 @@ jobs:
       - name: Health check
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ vars.DEPLOY_HOST || secrets.DEPLOY_HOST }}
-          username: ${{ vars.DEPLOY_USER || secrets.DEPLOY_USER }}
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |
