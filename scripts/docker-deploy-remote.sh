@@ -23,6 +23,11 @@ if [[ ! -d .output/server ]]; then
   exit 1
 fi
 
+if [[ ! -d .output/public/_nuxt ]]; then
+  echo "Missing ${APP_DIR}/.output/public/_nuxt — build is incomplete" >&2
+  exit 1
+fi
+
 echo "Building app image (prebuilt .output)..."
 export DOCKER_BUILDKIT=1
 docker build --progress=plain -t "${IMAGE_TAG}" .

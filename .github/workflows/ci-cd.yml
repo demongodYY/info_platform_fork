@@ -61,6 +61,12 @@ jobs:
       - name: pnpm build (prebuild + nuxt build)
         run: pnpm build
 
+      - name: Verify Nuxt client assets
+        run: |
+          test -d .output/public/_nuxt
+          test -f .output/server/index.mjs
+          echo "Client chunks: $(ls .output/public/_nuxt | wc -l) files"
+
       - name: Pack deploy bundle
         run: |
           tar czf deploy-bundle.tgz .output Dockerfile .dockerignore scripts/docker-deploy-remote.sh
@@ -97,9 +103,12 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ env.APP_DIR }}"
+            rm -rf .output
             tar xzf deploy-bundle.tgz
             rm -f deploy-bundle.tgz
             chmod +x scripts/docker-deploy-remote.sh
+            test -d .output/public/_nuxt
+            echo "Deployed client chunks: $(ls .output/public/_nuxt | wc -l) files"
 
       - name: Write runtime .env on server
         uses: appleboy/ssh-action@v1.2.0
