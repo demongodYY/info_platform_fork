@@ -5,8 +5,9 @@ Workflow：[`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 **push 到 `main`** 时：
 
 1. **quality** — `pnpm lint` + `pnpm test`
-2. **build** — 在 GitHub Actions 上 `pnpm build`（含 `prebuild` → `import-articles.js`），产出 `.output` 并上传 artifact
-3. **deploy** — 服务器 `git pull`（Dockerfile / 脚本）→ SCP 上传 `.output` → 轻量 `docker build` + `docker run`
+2. **deploy** — GitHub 上 `pnpm build`（含 prebuild）→ 服务器 `git pull` → SCP `.output` → 轻量 `docker build` + `docker run`
+
+构建与上传在同一 job，避免 artifact 跨 job 丢失（勿单独重跑 deploy 而不重跑 build）。
 
 服务器上不再跑 `pnpm install` / Nitro 全量构建，避免轻量机超时。
 
