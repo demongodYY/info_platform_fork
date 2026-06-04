@@ -1,37 +1,56 @@
 #!/usr/bin/env bash
-# Runs on Lighthouse: expects CI-uploaded .output + Dockerfile from git pull.
+# App container only. TLS / 443: separate nginx-ssl container on the host.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/info_platform}"
 CONTAINER_NAME="${CONTAINER_NAME:-info_platform}"
 IMAGE_TAG="${IMAGE_TAG:-info_platform:latest}"
-HOST_PORT="${HOST_PORT:-3000}"
+APP_PORT="${APP_PORT:-3000}"
+# Optional: same Docker network as nginx-ssl (e.g. proxy_pass http://10.1.0.10:3000)
+DOCKER_NETWORK="${DOCKER_NETWORK:-}"
+APP_CONTAINER_IP="${APP_CONTAINER_IP:-}"
+NGINX_SSL_CONTAINER="${NGINX_SSL_CONTAINER:-nginx-ssl}"
 
 cd "${APP_DIR}"
 
 if [[ ! -f .env ]]; then
-  echo "Missing ${APP_DIR}/.env — GitHub Actions must write it before deploy" >&2
+  echo "Missing ${APP_DIR}/.env" >&2
   exit 1
 fi
 
 if [[ ! -d .output/server ]]; then
-  echo "Missing ${APP_DIR}/.output — CI must upload the Nuxt build artifact first" >&2
+  echo "Missing ${APP_DIR}/.output — run CI deploy first" >&2
   exit 1
 fi
 
-echo "Building runtime Docker image (prebuilt .output)..."
+echo "Building app image (prebuilt .output)..."
 export DOCKER_BUILDKIT=1
 docker build --progress=plain -t "${IMAGE_TAG}" .
 
-echo "Restarting container..."
+echo "Restarting app container..."
 docker stop "${CONTAINER_NAME}" 2>/dev/null || true
 docker rm "${CONTAINER_NAME}" 2>/dev/null || true
 
-docker run -d \
-  --name "${CONTAINER_NAME}" \
-  --restart unless-stopped \
-  --env-file .env \
-  -p "127.0.0.1:${HOST_PORT}:3000" \
-  "${IMAGE_TAG}"
+RUN_OPTS=(
+  -d
+  --name "${CONTAINER_NAME}"
+  --restart unless-stopped
+  --env-file .env
+  -p "0.0.0.0:${APP_PORT}:3000"
+)
 
-echo "Container ${CONTAINER_NAME} listening on 127.0.0.1:${HOST_PORT} (map 443 via host Nginx/Caddy)"
+if [[ -n "${DOCKER_NETWORK}" ]]; then
+  RUN_OPTS+=(--network "${DOCKER_NETWORK}")
+  if [[ -n "${APP_CONTAINER_IP}" ]]; then
+    RUN_OPTS+=(--ip "${APP_CONTAINER_IP}")
+  fi
+fi
+
+docker run "${RUN_OPTS[@]}" "${IMAGE_TAG}"
+
+if docker ps -a --format '{{.Names}}' | grep -qx "${NGINX_SSL_CONTAINER}"; then
+  echo "Restarting ${NGINX_SSL_CONTAINER}..."
+  docker restart "${NGINX_SSL_CONTAINER}"
+fi
+
+echo "App listening on 0.0.0.0:${APP_PORT} (nginx-ssl terminates HTTPS)"

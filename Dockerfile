@@ -1,4 +1,4 @@
-# Runtime image — .output is built in GitHub Actions and uploaded before docker build.
+# Runtime: prebuilt .output only. HTTPS is handled by host nginx-ssl container.
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production \

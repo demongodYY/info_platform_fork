@@ -2,7 +2,8 @@
   <div class="page">
     <header class="hero">
       <div>
-        <h1 class="title">文章列表</h1>
+        <h1 class="title">一切开源儿</h1>
+        <p class="subtitle">文章列表</p>
       </div>
       <NuxtLink to="/notes/edit" class="primary-btn">创建文章</NuxtLink>
     </header>

@@ -2,36 +2,34 @@
 
 Workflow：[`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 
-**push 到 `main`** 时：
+## 架构
 
-1. **quality** — `pnpm lint` + `pnpm test`
-2. **deploy** — GitHub 上 `pnpm build` → 打包并 SCP 到服务器（`.output` + `Dockerfile` + 脚本）→ 轻量 `docker build` + `docker run`
+```text
+公网 HTTPS :443
+  → 宿主机 Docker：nginx-ssl（/home/nginx/conf/nginx.conf，证书 /home/ssl/...）
+  → http://10.1.0.10:3000（或 127.0.0.1:3000，按你的 nginx 配置）
+  → Docker：info_platform（仅 Node，监听 3000）
+```
 
-服务器**不需要**访问 GitHub（国内轻量机 `git clone` 常 TLS 失败）；所有文件由 CI 经 SSH 上传。
-
-服务器上不再跑 `pnpm install` / Nitro 全量构建。
+**GitHub Actions 只部署应用**，不修改 Nginx / SSL（基础设施单独维护）。
 
 ## GitHub Variables
 
-| Name          | 说明                           |
-| ------------- | ------------------------------ |
-| `DEPLOY_HOST` | 服务器 IP，如 `119.29.130.172` |
-| `DEPLOY_PORT` | SSH 端口，默认 `22`            |
-| `APP_PORT`    | 应用端口，默认 `3000`          |
+| Name                  | 默认        | 说明                                              |
+| --------------------- | ----------- | ------------------------------------------------- |
+| `DEPLOY_HOST`         | —           | 服务器 IP                                         |
+| `DEPLOY_PORT`         | `22`        | SSH                                               |
+| `APP_PORT`            | `3000`      | 应用映射到宿主机端口                              |
+| `DOCKER_NETWORK`      | 空          | 与 nginx-ssl 同网时填写（如需要固定 `10.1.0.10`） |
+| `APP_CONTAINER_IP`    | 空          | 与 nginx `proxy_pass` 一致时填 `10.1.0.10`        |
+| `NGINX_SSL_CONTAINER` | `nginx-ssl` | 部署后 `docker restart` 的 Nginx 容器名           |
 
-## GitHub Secrets
+## 流程
 
-| Name                                                     | 说明                         |
-| -------------------------------------------------------- | ---------------------------- |
-| `DEPLOY_KEY`                                             | SSH 私钥全文                 |
-| `DEPLOY_USER`                                            | SSH 用户，如 `root`          |
-| `SUPABASE_URL` / `SUPABASE_KEY` / `SUPABASE_SERVICE_KEY` | **构建**（prebuild）+ 运行时 |
-| `NEXT_PUBLIC_SUPABASE_*`                                 | **构建**（打进前端）+ 运行时 |
-| `POSTGRES_*` 等                                          | 运行时 `.env`                |
+`quality` → `deploy`：GitHub `pnpm build` → SCP 部署包 → 服务器 `docker build` + `docker run -p 3000:3000` → 可选重启 `nginx-ssl`。
 
-`prebuild` 使用 `SUPABASE_SERVICE_KEY` 或 `SUPABASE_KEY`（与 `import-articles.js` 一致）。
+## Nginx / 证书（服务器上，不进仓库）
 
-## 服务器
-
-- 目录：`/home/info_platform`（由 CI 上传维护，无需在服务器 `git pull`）
-- 对外 HTTPS：宿主机 Nginx 反代 `127.0.0.1:3000`
+- 配置：`/home/nginx/conf/nginx.conf`
+- 证书：`/home/ssl/diseasae.fshdyouth.com_nginx/`
+- 变更后：`docker restart nginx-ssl`

@@ -39,7 +39,7 @@ jobs:
       github.event_name != 'pull_request'
     env:
       APP_DIR: /home/info_platform
-      HOST_PORT: ${{ vars.APP_PORT || '3000' }}
+      APP_PORT: ${{ vars.APP_PORT || '3000' }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -105,7 +105,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           APP_DIR: ${{ env.APP_DIR }}
-          HOST_PORT: ${{ env.HOST_PORT }}
+          APP_PORT: ${{ env.APP_PORT }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
@@ -125,7 +125,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
-          envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,POSTGRES_DATABASE,POSTGRES_HOST,POSTGRES_PASSWORD,POSTGRES_PRISMA_URL,POSTGRES_URL,POSTGRES_URL_NON_POOLING,POSTGRES_USER
+          envs: APP_DIR,APP_PORT,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,POSTGRES_DATABASE,POSTGRES_HOST,POSTGRES_PASSWORD,POSTGRES_PRISMA_URL,POSTGRES_URL,POSTGRES_URL_NON_POOLING,POSTGRES_USER
           script: |
             set -euo pipefail
             umask 177
@@ -153,19 +153,22 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           APP_DIR: ${{ env.APP_DIR }}
-          HOST_PORT: ${{ env.HOST_PORT }}
+          APP_PORT: ${{ env.APP_PORT }}
+          DOCKER_NETWORK: ${{ vars.DOCKER_NETWORK }}
+          APP_CONTAINER_IP: ${{ vars.APP_CONTAINER_IP }}
+          NGINX_SSL_CONTAINER: ${{ vars.NGINX_SSL_CONTAINER || 'nginx-ssl' }}
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           command_timeout: 15m
-          envs: APP_DIR,HOST_PORT
+          envs: APP_DIR,APP_PORT,DOCKER_NETWORK,APP_CONTAINER_IP,NGINX_SSL_CONTAINER
           script: |
             set -euo pipefail
             cd "${APP_DIR}"
             chmod +x scripts/docker-deploy-remote.sh
-            export APP_DIR HOST_PORT
+            export APP_DIR APP_PORT DOCKER_NETWORK APP_CONTAINER_IP NGINX_SSL_CONTAINER
             ./scripts/docker-deploy-remote.sh
 
       - name: Health check
@@ -178,7 +181,7 @@ jobs:
           script: |
             set -euo pipefail
             for i in $(seq 1 30); do
-              if curl -fsS "http://127.0.0.1:${{ env.HOST_PORT }}/" >/dev/null 2>&1; then
+              if curl -fsS "http://127.0.0.1:${{ env.APP_PORT }}/" >/dev/null 2>&1; then
                 echo "Health check passed"
                 docker ps --filter name=info_platform
                 exit 0

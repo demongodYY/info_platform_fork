@@ -1,5 +1,12 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  app: {
+    head: {
+      title: '一切开源儿',
+      titleTemplate: '%s - 一切开源儿',
+      htmlAttrs: { lang: 'zh-CN' },
+    },
+  },
   devtools: { enabled: true },
 
   routeRules: {

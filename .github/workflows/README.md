@@ -1,12 +1,10 @@
-# GitHub Actions Workflows
+# GitHub Actions
 
 ## ci-cd.yml
 
-`push` / `pull_request` 到 `main`：
+| Job       | 何时        | 说明                                                  |
+| --------- | ----------- | ----------------------------------------------------- |
+| `quality` | PR / push   | lint + test                                           |
+| `deploy`  | `main` push | GitHub `pnpm build` → SCP → 服务器 Docker（仅 :3000） |
 
-| Job       | 何时运行     | 说明                                                   |
-| --------- | ------------ | ------------------------------------------------------ |
-| `quality` | 始终         | lint + test                                            |
-| `deploy`  | `main` 非 PR | 同 job 内 `pnpm build` → SCP `.output` → 服务器 Docker |
-
-配置见 [docs/deploy-cloud.md](../../docs/deploy-cloud.md)。
+HTTPS 由宿主机 `nginx-ssl` 处理，见 [docs/deploy-cloud.md](../../docs/deploy-cloud.md)。
