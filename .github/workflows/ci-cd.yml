@@ -60,12 +60,30 @@ jobs:
       HOST_PORT: ${{ vars.APP_PORT || '3000' }}
 
     steps:
+      # Do not pass secrets via step env (GitHub often leaves them empty in shell).
+      # Write key to a file from ${{ secrets.DEPLOY_KEY }} then use key_path.
+      - name: Install SSH key
+        id: sshkey
+        run: |
+          KEY_FILE="${RUNNER_TEMP}/deploy_key"
+          echo "${{ secrets.DEPLOY_KEY }}" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          if [ ! -s "$KEY_FILE" ]; then
+            echo "::error::DEPLOY_KEY is empty. Add the private key under Secrets on repository OpenRareDisease/info_platform."
+            exit 1
+          fi
+          if ! ssh-keygen -y -f "$KEY_FILE" >/dev/null 2>&1; then
+            echo "::error::DEPLOY_KEY is not a valid SSH private key."
+            exit 1
+          fi
+          echo "key_file=$KEY_FILE" >> "$GITHUB_OUTPUT"
+
       - name: Pull latest code on server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
+          key_path: ${{ steps.sshkey.outputs.key_file }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |
             set -euo pipefail
