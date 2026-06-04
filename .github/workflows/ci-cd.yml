@@ -1,12 +1,6 @@
 name: CI/CD
 
 on:
-  workflow_call:
-    inputs:
-      skip_deploy:
-        description: Lint/test only (fork sync)
-        type: boolean
-        default: false
   push:
     branches: [main]
   pull_request:
@@ -22,28 +16,17 @@ jobs:
     name: Lint and Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Test
-        run: pnpm test
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
 
   deploy:
     name: Deploy to Lighthouse (Docker)
@@ -51,50 +34,29 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       needs.quality.result == 'success' &&
-      github.repository == 'OpenRareDisease/info_platform' &&
       github.ref == 'refs/heads/main' &&
-      github.event_name != 'pull_request' &&
-      (github.event_name != 'workflow_call' || inputs.skip_deploy != true)
+      github.event_name != 'pull_request'
     env:
       APP_DIR: /home/info_platform
       HOST_PORT: ${{ vars.APP_PORT || '3000' }}
+      REPO_URL: https://github.com/${{ github.repository }}.git
 
     steps:
-      # Do not pass secrets via step env (GitHub often leaves them empty in shell).
-      # Write key to a file from ${{ secrets.DEPLOY_KEY }} then use key_path.
-      - name: Install SSH key
-        id: sshkey
-        run: |
-          KEY_FILE="${RUNNER_TEMP}/deploy_key"
-          echo "${{ secrets.DEPLOY_KEY }}" > "$KEY_FILE"
-          chmod 600 "$KEY_FILE"
-          if [ ! -s "$KEY_FILE" ]; then
-            echo "::error::DEPLOY_KEY is empty. Add the private key under Secrets on repository OpenRareDisease/info_platform."
-            exit 1
-          fi
-          if ! ssh-keygen -y -f "$KEY_FILE" >/dev/null 2>&1; then
-            echo "::error::DEPLOY_KEY is not a valid SSH private key."
-            exit 1
-          fi
-          echo "key_file=$KEY_FILE" >> "$GITHUB_OUTPUT"
-
       - name: Pull latest code on server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: ${{ steps.sshkey.outputs.key_file }}
+          key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |
             set -euo pipefail
             APP_DIR="${{ env.APP_DIR }}"
-            REPO_URL="https://github.com/OpenRareDisease/info_platform.git"
+            REPO_URL="${{ env.REPO_URL }}"
             if [ ! -d "${APP_DIR}/.git" ]; then
               echo "First deploy: cloning ${REPO_URL} -> ${APP_DIR}"
               mkdir -p "$(dirname "${APP_DIR}")"
-              if [ -d "${APP_DIR}" ]; then
-                rm -rf "${APP_DIR}"
-              fi
+              rm -rf "${APP_DIR}"
               git clone "${REPO_URL}" "${APP_DIR}"
             fi
             cd "${APP_DIR}"
@@ -187,6 +149,5 @@ jobs:
               fi
               sleep 2
             done
-            echo "Health check failed"
             docker logs info_platform --tail 80 2>&1 || true
             exit 1
