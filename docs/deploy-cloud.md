@@ -24,6 +24,8 @@ Workflow：[`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 | `APP_CONTAINER_IP`    | 空          | 与 nginx `proxy_pass` 一致时填 `10.1.0.10`        |
 | `NGINX_SSL_CONTAINER` | `nginx-ssl` | 部署后 `docker restart` 的 Nginx 容器名           |
 
+**Secrets**（`DEPLOY_KEY`、`DEPLOY_USER`、`SUPABASE_*`、`POSTGRES_*`、`NEXT_PUBLIC_*` 等）见 **[README.md § 云端环境变量](../README.md#云端环境变量)**。
+
 ## 流程
 
 `quality` → `deploy`：GitHub `pnpm build` → SCP 部署包 → 服务器 `docker build` + `docker run -p 3000:3000` → 可选重启 `nginx-ssl`。

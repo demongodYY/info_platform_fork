@@ -113,9 +113,9 @@ graph TB
 pnpm install
 ```
 
-### 2. 环境变量
+### 2. 环境变量（本地）
 
-复制并填写 `.env`：
+复制并填写 `.env`（勿提交 Git）。字段与云端一致，详见下方 [云端环境变量](#云端环境变量)：
 
 ```bash
 SUPABASE_URL=...
@@ -123,6 +123,7 @@ SUPABASE_KEY=...
 SUPABASE_SERVICE_KEY=...   # prebuild 导入文章
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+# 若使用搜索等功能，按代码需要补充 POSTGRES_*、EMBEDDING_* 等
 ```
 
 ### 3. 本地开发
@@ -171,15 +172,70 @@ git push origin main   # 或在 PR 合并进 main 后自动部署
 | 发布 | SCP `.output` + `Dockerfile` 到服务器 → `docker build` / `docker run` |
 | 入口 | `nginx-ssl` 提供 HTTPS，反代到应用 `:3000`                            |
 
-详细配置（Secrets、Variables、防火墙、证书路径）见 **[docs/deploy-cloud.md](./docs/deploy-cloud.md)**。
+服务器防火墙、Nginx、证书路径见 **[docs/deploy-cloud.md](./docs/deploy-cloud.md)**。Workflow 说明见 [.github/workflows/README.md](.github/workflows/README.md)。
 
-### GitHub 仓库需配置
+### 云端环境变量
 
-**Variables**：`DEPLOY_HOST`、`DEPLOY_PORT`（可选）、`APP_PORT`（默认 `3000`）等
+在 **GitHub 仓库**（`OpenRareDisease/info_platform`）配置：**Settings → Secrets and variables → Actions**。  
+部署时 CI 会把 Secrets 写入服务器 `/home/info_platform/.env`，供 Docker 容器运行时读取。  
+本地 `.env` 应与下列变量**保持一致**（便于对照与调试），但**不要**把 `.env` 提交到 Git。
 
-**Secrets**：`DEPLOY_KEY`、`DEPLOY_USER`、`SUPABASE_*`、`POSTGRES_*`、`NEXT_PUBLIC_*` 等
+#### GitHub Variables（非敏感）
 
-Workflow 说明见 [.github/workflows/README.md](.github/workflows/README.md)。
+| 变量名                | 必填 | 说明                                        | 示例               |
+| --------------------- | ---- | ------------------------------------------- | ------------------ |
+| `DEPLOY_HOST`         | 是   | 轻量服务器公网 IP                           | `119.29.130.172`   |
+| `DEPLOY_PORT`         | 否   | SSH 端口，默认 `22`                         | `22`               |
+| `APP_PORT`            | 否   | 应用映射到宿主机端口，默认 `3000`           | `3000`             |
+| `DOCKER_NETWORK`      | 否   | 与 `nginx-ssl` 同 Docker 网络时使用         | 按服务器实际网络名 |
+| `APP_CONTAINER_IP`    | 否   | 与 Nginx `proxy_pass` 目标 IP 一致时填写    | `10.1.0.10`        |
+| `NGINX_SSL_CONTAINER` | 否   | 部署后重启的 Nginx 容器名，默认 `nginx-ssl` | `nginx-ssl`        |
+
+#### GitHub Secrets（敏感）
+
+**SSH 部署**
+
+| Secret        | 用途                         |
+| ------------- | ---------------------------- |
+| `DEPLOY_KEY`  | SSH 私钥全文（OpenSSH 格式） |
+| `DEPLOY_USER` | SSH 登录用户，如 `root`      |
+
+**构建阶段**（`pnpm build` 与 `prebuild` / `import-articles.js`）
+
+| Secret                          | 用途                                             |
+| ------------------------------- | ------------------------------------------------ |
+| `SUPABASE_URL`                  | Supabase 项目 URL                                |
+| `SUPABASE_KEY`                  | Anon key（prebuild 可代替 SERVICE_KEY）          |
+| `SUPABASE_SERVICE_KEY`          | Service role key（导入文章、服务端写库）         |
+| `SUPABASE_SERVICE_ROLE_KEY`     | 与上类似，按你 Supabase 面板中的命名配置其一即可 |
+| `NEXT_PUBLIC_SUPABASE_URL`      | 打进前端构建产物                                 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 打进前端构建产物                                 |
+
+**运行时**（写入服务器 `.env`，容器 `--env-file` 加载）
+
+除上述外，部署流程还会写入：
+
+| Secret                     | 用途                       |
+| -------------------------- | -------------------------- |
+| `SUPABASE_JWT_SECRET`      | Supabase JWT（若模块需要） |
+| `POSTGRES_URL`             | Postgres 连接串            |
+| `POSTGRES_URL_NON_POOLING` | 非连接池 URL（如有）       |
+| `POSTGRES_PRISMA_URL`      | Prisma 用 URL（如有）      |
+| `POSTGRES_HOST`            | 数据库主机                 |
+| `POSTGRES_USER`            | 数据库用户                 |
+| `POSTGRES_PASSWORD`        | 数据库密码                 |
+| `POSTGRES_DATABASE`        | 数据库名                   |
+
+容器内还会固定写入：`NODE_ENV=production`、`HOST=0.0.0.0`、`PORT=3000`（无需在 GitHub 单独配置）。
+
+#### 配置检查清单
+
+1. **构建能过**：至少配置 `SUPABASE_URL` + `SUPABASE_SERVICE_KEY`（或 `SUPABASE_KEY`）+ `NEXT_PUBLIC_SUPABASE_*`。
+2. **部署能连服务器**：`DEPLOY_HOST`（Variables）+ `DEPLOY_KEY` + `DEPLOY_USER`。
+3. **线上能访问数据**：运行时 Secrets 与本地 `.env` 一致，且 Supabase / Postgres 允许服务器出口访问。
+4. **HTTPS**：证书在服务器 `/home/ssl/...`，由 `nginx-ssl` 挂载，**不需要**放进本仓库。
+
+若新增功能依赖其他环境变量（如搜索用的 Embedding API），需在 `ci-cd.yml` 的 build / `.env` 写入步骤中一并加入对应 Secret。
 
 ## 🔄 开发流程
 
