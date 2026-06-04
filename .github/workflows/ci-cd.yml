@@ -1,0 +1,181 @@
+name: CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      skip_deploy:
+        description: Run lint/test only (used by fork sync workflow)
+        type: boolean
+        default: true
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+  deploy:
+    name: Deploy to Lighthouse (Docker)
+    needs: quality
+    runs-on: ubuntu-latest
+    if: >
+      needs.quality.result == 'success' &&
+      github.repository == 'OpenRareDisease/info_platform' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_call' || inputs.skip_deploy != true)
+    env:
+      APP_DIR: /home/info_platform
+      HOST_PORT: ${{ vars.APP_PORT || '3000' }}
+      # Build args for docker build on server (prebuild)
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Runtime .env on server
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      POSTGRES_DATABASE: ${{ secrets.POSTGRES_DATABASE }}
+      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+      POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+      POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+
+    steps:
+      - name: Pull latest code on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -euo pipefail
+            if [ ! -d "${{ env.APP_DIR }}/.git" ]; then
+              echo "Clone repo first on the server:" >&2
+              echo "  git clone https://github.com/OpenRareDisease/info_platform.git ${{ env.APP_DIR }}" >&2
+              exit 1
+            fi
+            cd "${{ env.APP_DIR }}"
+            git fetch origin main
+            git reset --hard origin/main
+
+      - name: Write runtime .env on server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          APP_DIR: ${{ env.APP_DIR }}
+          HOST_PORT: ${{ env.HOST_PORT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          POSTGRES_DATABASE: ${{ secrets.POSTGRES_DATABASE }}
+          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,POSTGRES_DATABASE,POSTGRES_HOST,POSTGRES_PASSWORD,POSTGRES_PRISMA_URL,POSTGRES_URL,POSTGRES_URL_NON_POOLING,POSTGRES_USER
+          script: |
+            set -euo pipefail
+            umask 177
+            printf '%s\n' \
+              "NODE_ENV=production" \
+              "HOST=0.0.0.0" \
+              "PORT=3000" \
+              "SUPABASE_URL=${SUPABASE_URL}" \
+              "SUPABASE_KEY=${SUPABASE_KEY}" \
+              "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" \
+              "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" \
+              "SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}" \
+              "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" \
+              "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+              "POSTGRES_DATABASE=${POSTGRES_DATABASE}" \
+              "POSTGRES_HOST=${POSTGRES_HOST}" \
+              "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" \
+              "POSTGRES_PRISMA_URL=${POSTGRES_PRISMA_URL}" \
+              "POSTGRES_URL=${POSTGRES_URL}" \
+              "POSTGRES_URL_NON_POOLING=${POSTGRES_URL_NON_POOLING}" \
+              "POSTGRES_USER=${POSTGRES_USER}" \
+              > "${APP_DIR}/.env"
+
+      - name: Docker build and run
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          APP_DIR: ${{ env.APP_DIR }}
+          HOST_PORT: ${{ env.HOST_PORT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY
+          script: |
+            set -euo pipefail
+            cd "${APP_DIR}"
+            chmod +x scripts/docker-deploy-remote.sh
+            export APP_DIR HOST_PORT
+            ./scripts/docker-deploy-remote.sh
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -euo pipefail
+            for i in $(seq 1 30); do
+              if curl -fsS "http://127.0.0.1:${{ env.HOST_PORT }}/" >/dev/null 2>&1; then
+                echo "Health check passed"
+                docker ps --filter name=info_platform
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "Health check failed"
+            docker logs info_platform --tail 80 2>&1 || true
+            exit 1

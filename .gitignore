@@ -102,7 +102,6 @@ coverage/
 
 # openspec
 .claude
-.github
 
 # ui spec
 ui_spec
