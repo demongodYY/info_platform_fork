@@ -5,11 +5,11 @@ Workflow：[`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 **push 到 `main`** 时：
 
 1. **quality** — `pnpm lint` + `pnpm test`
-2. **deploy** — GitHub 上 `pnpm build`（含 prebuild）→ 服务器 `git pull` → SCP `.output` → 轻量 `docker build` + `docker run`
+2. **deploy** — GitHub 上 `pnpm build` → 打包并 SCP 到服务器（`.output` + `Dockerfile` + 脚本）→ 轻量 `docker build` + `docker run`
 
-构建与上传在同一 job，避免 artifact 跨 job 丢失（勿单独重跑 deploy 而不重跑 build）。
+服务器**不需要**访问 GitHub（国内轻量机 `git clone` 常 TLS 失败）；所有文件由 CI 经 SSH 上传。
 
-服务器上不再跑 `pnpm install` / Nitro 全量构建，避免轻量机超时。
+服务器上不再跑 `pnpm install` / Nitro 全量构建。
 
 ## GitHub Variables
 
@@ -33,6 +33,5 @@ Workflow：[`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 
 ## 服务器
 
-- 目录：`/home/info_platform`
-- `.output` 由 CI 上传，不来自 git
+- 目录：`/home/info_platform`（由 CI 上传维护，无需在服务器 `git pull`）
 - 对外 HTTPS：宿主机 Nginx 反代 `127.0.0.1:3000`
