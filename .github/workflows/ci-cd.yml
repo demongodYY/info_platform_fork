@@ -60,12 +60,30 @@ jobs:
       HOST_PORT: ${{ vars.APP_PORT || '3000' }}
 
     steps:
+      - name: Prepare SSH private key
+        id: sshkey
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "::error::DEPLOY_KEY secret is empty. Paste the full OpenSSH private key (with BEGIN/END lines) in repository Secrets."
+            exit 1
+          fi
+          KEY_FILE="${RUNNER_TEMP}/deploy_key"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          if ! ssh-keygen -y -f "$KEY_FILE" >/dev/null 2>&1; then
+            echo "::error::DEPLOY_KEY is not a valid SSH private key."
+            exit 1
+          fi
+          echo "key_file=$KEY_FILE" >> "$GITHUB_OUTPUT"
+
       - name: Pull latest code on server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
+          key_path: ${{ steps.sshkey.outputs.key_file }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |
             set -euo pipefail
@@ -100,7 +118,7 @@ jobs:
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
+          key_path: ${{ steps.sshkey.outputs.key_file }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,POSTGRES_DATABASE,POSTGRES_HOST,POSTGRES_PASSWORD,POSTGRES_PRISMA_URL,POSTGRES_URL,POSTGRES_URL_NON_POOLING,POSTGRES_USER
           script: |
@@ -137,7 +155,7 @@ jobs:
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
+          key_path: ${{ steps.sshkey.outputs.key_file }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY
           script: |
