@@ -76,12 +76,37 @@ jobs:
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
 
     steps:
+      - name: Validate deploy SSH configuration
+        id: ssh
+        env:
+          HOST_VAR: ${{ vars.DEPLOY_HOST }}
+          HOST_SECRET: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          if [ -n "$HOST_VAR" ]; then
+            echo "host=$HOST_VAR" >> "$GITHUB_OUTPUT"
+          elif [ -n "$HOST_SECRET" ]; then
+            echo "host=$HOST_SECRET" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::DEPLOY_HOST is empty. Add repository Secret or Variable DEPLOY_HOST (e.g. 119.29.130.172) on OpenRareDisease/info_platform."
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_USER }}" ]; then
+            echo "::error::DEPLOY_USER secret is missing."
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_KEY }}" ]; then
+            echo "::error::DEPLOY_KEY secret is missing."
+            exit 1
+          fi
+          echo "SSH deploy target configured."
+
       - name: Pull latest code on server
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
+          host: ${{ steps.ssh.outputs.host }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |
             set -euo pipefail
             if [ ! -d "${{ env.APP_DIR }}/.git" ]; then
@@ -113,9 +138,10 @@ jobs:
           POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
+          host: ${{ steps.ssh.outputs.host }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ vars.DEPLOY_PORT || '22' }}
           envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,POSTGRES_DATABASE,POSTGRES_HOST,POSTGRES_PASSWORD,POSTGRES_PRISMA_URL,POSTGRES_URL,POSTGRES_URL_NON_POOLING,POSTGRES_USER
           script: |
             set -euo pipefail
@@ -149,9 +175,10 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
+          host: ${{ steps.ssh.outputs.host }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ vars.DEPLOY_PORT || '22' }}
           envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY
           script: |
             set -euo pipefail
@@ -163,9 +190,10 @@ jobs:
       - name: Health check
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
+          host: ${{ steps.ssh.outputs.host }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |
             set -euo pipefail
             for i in $(seq 1 30); do

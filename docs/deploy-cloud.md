@@ -15,11 +15,18 @@ git clone https://github.com/OpenRareDisease/info_platform.git /home/info_platfo
 
 - 对外 **HTTPS 443**：容器内 Nuxt 监听 **3000**。请在宿主机用 **Nginx/Caddy** 将 443 反代到 `127.0.0.1:3000`（腾讯官方示例 `-p 443:443` 不适用于未在容器内配置 TLS 的 Node 应用）。
 
-## GitHub Secrets（与腾讯文档一致）
+## GitHub Variables（Actions → Variables）
+
+| Variable      | 示例 / 说明                                                                      |
+| ------------- | -------------------------------------------------------------------------------- |
+| `DEPLOY_HOST` | 如 `119.29.130.172`（**不要**只放在 Secrets 里，workflow 读 `vars.DEPLOY_HOST`） |
+| `APP_PORT`    | 可选，默认 `3000`                                                                |
+| `DEPLOY_PORT` | 可选，SSH 端口，默认 `22`                                                        |
+
+## GitHub Secrets（Actions → Secrets）
 
 | Secret                          | 示例 / 说明                      |
 | ------------------------------- | -------------------------------- |
-| `DEPLOY_HOST`                   | 如 `119.29.130.172`              |
 | `DEPLOY_USER`                   | 如 `root`                        |
 | `DEPLOY_KEY`                    | `github-actions-deploy` 私钥全文 |
 | `SUPABASE_URL`                  | 运行时 + 构建                    |
