@@ -81,21 +81,27 @@ jobs:
         env:
           HOST_VAR: ${{ vars.DEPLOY_HOST }}
           HOST_SECRET: ${{ secrets.DEPLOY_HOST }}
+          USER_VAR: ${{ vars.DEPLOY_USER }}
+          USER_SECRET: ${{ secrets.DEPLOY_USER }}
         run: |
           if [ -n "$HOST_VAR" ]; then
             echo "host=$HOST_VAR" >> "$GITHUB_OUTPUT"
           elif [ -n "$HOST_SECRET" ]; then
             echo "host=$HOST_SECRET" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::DEPLOY_HOST is empty. Add repository Secret or Variable DEPLOY_HOST (e.g. 119.29.130.172) on OpenRareDisease/info_platform."
+            echo "::error::DEPLOY_HOST is empty. Add Variable or Secret DEPLOY_HOST (e.g. 119.29.130.172)."
             exit 1
           fi
-          if [ -z "${{ secrets.DEPLOY_USER }}" ]; then
-            echo "::error::DEPLOY_USER secret is missing."
+          if [ -n "$USER_VAR" ]; then
+            echo "username=$USER_VAR" >> "$GITHUB_OUTPUT"
+          elif [ -n "$USER_SECRET" ]; then
+            echo "username=$USER_SECRET" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::DEPLOY_USER is empty. Add Variable or Secret DEPLOY_USER (e.g. root)."
             exit 1
           fi
           if [ -z "${{ secrets.DEPLOY_KEY }}" ]; then
-            echo "::error::DEPLOY_KEY secret is missing."
+            echo "::error::DEPLOY_KEY secret is missing (private key must be a Secret)."
             exit 1
           fi
           echo "SSH deploy target configured."
@@ -104,7 +110,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ steps.ssh.outputs.host }}
-          username: ${{ secrets.DEPLOY_USER }}
+          username: ${{ steps.ssh.outputs.username }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |
@@ -139,7 +145,7 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
         with:
           host: ${{ steps.ssh.outputs.host }}
-          username: ${{ secrets.DEPLOY_USER }}
+          username: ${{ steps.ssh.outputs.username }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_KEY,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,POSTGRES_DATABASE,POSTGRES_HOST,POSTGRES_PASSWORD,POSTGRES_PRISMA_URL,POSTGRES_URL,POSTGRES_URL_NON_POOLING,POSTGRES_USER
@@ -176,7 +182,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         with:
           host: ${{ steps.ssh.outputs.host }}
-          username: ${{ secrets.DEPLOY_USER }}
+          username: ${{ steps.ssh.outputs.username }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY
@@ -191,7 +197,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ steps.ssh.outputs.host }}
-          username: ${{ secrets.DEPLOY_USER }}
+          username: ${{ steps.ssh.outputs.username }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
           script: |

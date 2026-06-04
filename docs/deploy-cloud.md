@@ -17,26 +17,27 @@ git clone https://github.com/OpenRareDisease/info_platform.git /home/info_platfo
 
 ## GitHub Variables（Actions → Variables）
 
-| Variable      | 示例 / 说明                                                                      |
-| ------------- | -------------------------------------------------------------------------------- |
-| `DEPLOY_HOST` | 如 `119.29.130.172`（**不要**只放在 Secrets 里，workflow 读 `vars.DEPLOY_HOST`） |
-| `APP_PORT`    | 可选，默认 `3000`                                                                |
-| `DEPLOY_PORT` | 可选，SSH 端口，默认 `22`                                                        |
+| Variable      | 示例 / 说明                          |
+| ------------- | ------------------------------------ |
+| `DEPLOY_HOST` | 如 `119.29.130.172`                  |
+| `DEPLOY_USER` | 如 `root`（Variable 或 Secret 均可） |
+| `APP_PORT`    | 可选，默认 `3000`                    |
+| `DEPLOY_PORT` | 可选，SSH 端口，默认 `22`            |
 
 ## GitHub Secrets（Actions → Secrets）
 
-| Secret                          | 示例 / 说明                      |
-| ------------------------------- | -------------------------------- |
-| `DEPLOY_USER`                   | 如 `root`                        |
-| `DEPLOY_KEY`                    | `github-actions-deploy` 私钥全文 |
-| `SUPABASE_URL`                  | 运行时 + 构建                    |
-| `SUPABASE_KEY`                  | 运行时                           |
-| `SUPABASE_SERVICE_KEY`          | 运行时 + 构建（prebuild）        |
-| `SUPABASE_SERVICE_ROLE_KEY`     | 运行时 + 构建                    |
-| `SUPABASE_JWT_SECRET`           | 运行时                           |
-| `NEXT_PUBLIC_SUPABASE_URL`      | 运行时                           |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 运行时                           |
-| `POSTGRES_*`                    | 运行时（共 7 项）                |
+| Secret                          | 示例 / 说明                                         |
+| ------------------------------- | --------------------------------------------------- |
+| `DEPLOY_KEY`                    | SSH 私钥全文（**必须**是 Secret，不能放 Variables） |
+| `DEPLOY_USER`                   | 也可放 Secret；若已在 Variables 配置则不必重复      |
+| `SUPABASE_URL`                  | 运行时 + 构建                                       |
+| `SUPABASE_KEY`                  | 运行时                                              |
+| `SUPABASE_SERVICE_KEY`          | 运行时 + 构建（prebuild）                           |
+| `SUPABASE_SERVICE_ROLE_KEY`     | 运行时 + 构建                                       |
+| `SUPABASE_JWT_SECRET`           | 运行时                                              |
+| `NEXT_PUBLIC_SUPABASE_URL`      | 运行时                                              |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 运行时                                              |
+| `POSTGRES_*`                    | 运行时（共 7 项）                                   |
 
 Fork 同步 PR 另需 **`PAT`**（仅 fork 仓库）。
 
