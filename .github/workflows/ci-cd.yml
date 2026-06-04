@@ -28,8 +28,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
 
-  deploy:
-    name: Deploy to Lighthouse (Docker)
+  build:
+    name: Build Nuxt (.output)
     needs: quality
     runs-on: ubuntu-latest
     if: >
@@ -37,12 +37,47 @@ jobs:
       github.ref == 'refs/heads/main' &&
       github.event_name != 'pull_request'
     env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: pnpm build (prebuild + nuxt build)
+        run: pnpm build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuxt-output
+          path: .output
+          retention-days: 3
+
+  deploy:
+    name: Deploy to Lighthouse (Docker)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
       APP_DIR: /home/info_platform
       HOST_PORT: ${{ vars.APP_PORT || '3000' }}
       REPO_URL: https://github.com/${{ github.repository }}.git
 
     steps:
-      - name: Pull latest code on server
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuxt-output
+          path: .output
+
+      - name: Sync deploy files on server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ vars.DEPLOY_HOST }}
@@ -62,6 +97,17 @@ jobs:
             cd "${APP_DIR}"
             git fetch origin main
             git reset --hard origin/main
+
+      - name: Upload .output to server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ vars.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ vars.DEPLOY_PORT || '22' }}
+          source: ".output"
+          target: ${{ env.APP_DIR }}
+          overwrite: true
 
       - name: Write runtime .env on server
         uses: appleboy/ssh-action@v1.2.0
@@ -116,15 +162,13 @@ jobs:
         env:
           APP_DIR: ${{ env.APP_DIR }}
           HOST_PORT: ${{ env.HOST_PORT }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         with:
           host: ${{ vars.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ vars.DEPLOY_PORT || '22' }}
-          envs: APP_DIR,HOST_PORT,SUPABASE_URL,SUPABASE_SERVICE_KEY,SUPABASE_SERVICE_ROLE_KEY
+          command_timeout: 15m
+          envs: APP_DIR,HOST_PORT
           script: |
             set -euo pipefail
             cd "${APP_DIR}"

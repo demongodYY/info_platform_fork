@@ -2,7 +2,13 @@
 
 Workflow：[`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 
-**push 到本仓库 `main`** → lint/test → SSH 部署（`git pull` + Docker）。
+**push 到 `main`** 时：
+
+1. **quality** — `pnpm lint` + `pnpm test`
+2. **build** — 在 GitHub Actions 上 `pnpm build`（含 `prebuild` → `import-articles.js`），产出 `.output` 并上传 artifact
+3. **deploy** — 服务器 `git pull`（Dockerfile / 脚本）→ SCP 上传 `.output` → 轻量 `docker build` + `docker run`
+
+服务器上不再跑 `pnpm install` / Nitro 全量构建，避免轻量机超时。
 
 ## GitHub Variables
 
@@ -14,19 +20,18 @@ Workflow：[`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml)
 
 ## GitHub Secrets
 
-| Name                                          | 说明                                |
-| --------------------------------------------- | ----------------------------------- |
-| `DEPLOY_KEY`                                  | SSH 私钥全文                        |
-| `DEPLOY_USER`                                 | SSH 用户，如 `root`                 |
-| `SUPABASE_*` / `NEXT_PUBLIC_*` / `POSTGRES_*` | 运行时 `.env`（与本地 `.env` 一致） |
+| Name                                                     | 说明                         |
+| -------------------------------------------------------- | ---------------------------- |
+| `DEPLOY_KEY`                                             | SSH 私钥全文                 |
+| `DEPLOY_USER`                                            | SSH 用户，如 `root`          |
+| `SUPABASE_URL` / `SUPABASE_KEY` / `SUPABASE_SERVICE_KEY` | **构建**（prebuild）+ 运行时 |
+| `NEXT_PUBLIC_SUPABASE_*`                                 | **构建**（打进前端）+ 运行时 |
+| `POSTGRES_*` 等                                          | 运行时 `.env`                |
+
+`prebuild` 使用 `SUPABASE_SERVICE_KEY` 或 `SUPABASE_KEY`（与 `import-articles.js` 一致）。
 
 ## 服务器
 
 - 目录：`/home/info_platform`
-- 首次自动 `git clone` 当前仓库
+- `.output` 由 CI 上传，不来自 git
 - 对外 HTTPS：宿主机 Nginx 反代 `127.0.0.1:3000`
-
-```bash
-# 可选：手动首次 clone
-git clone https://github.com/<你的用户名>/info_platform.git /home/info_platform
-```

@@ -1,8 +1,13 @@
-# CI/CD
+# GitHub Actions Workflows
 
-单一 workflow：[ci-cd.yml](./ci-cd.yml)
+## ci-cd.yml
 
-- **push `main`**：先 lint/test，通过后自动部署到轻量服务器（Docker）
-- **pull_request**：仅 lint/test，不部署
+`push` / `pull_request` 到 `main`：
+
+| Job       | 何时运行        | 说明                                        |
+| --------- | --------------- | ------------------------------------------- |
+| `quality` | 始终            | lint + test                                 |
+| `build`   | 仅 `main` 非 PR | `pnpm build`（含 prebuild），上传 `.output` |
+| `deploy`  | `build` 成功后  | SCP `.output` + 服务器 Docker 运行          |
 
 配置见 [docs/deploy-cloud.md](../../docs/deploy-cloud.md)。

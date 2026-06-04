@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs on Lighthouse after git pull. Called from GitHub Actions over SSH.
+# Runs on Lighthouse: expects CI-uploaded .output + Dockerfile from git pull.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/info_platform}"
@@ -14,12 +14,14 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-echo "Building Docker image..."
-docker build -t "${IMAGE_TAG}" \
-  --build-arg "SUPABASE_URL=${SUPABASE_URL:-}" \
-  --build-arg "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-}" \
-  --build-arg "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}" \
-  .
+if [[ ! -d .output/server ]]; then
+  echo "Missing ${APP_DIR}/.output — CI must upload the Nuxt build artifact first" >&2
+  exit 1
+fi
+
+echo "Building runtime Docker image (prebuilt .output)..."
+export DOCKER_BUILDKIT=1
+docker build --progress=plain -t "${IMAGE_TAG}" .
 
 echo "Restarting container..."
 docker stop "${CONTAINER_NAME}" 2>/dev/null || true
