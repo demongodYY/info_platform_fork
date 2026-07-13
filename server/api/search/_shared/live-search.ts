@@ -22,7 +22,8 @@ export async function searchWhitelistedSources(
 
 export async function searchInternetSupplementSources(
   query: string,
-  registry: SourceRegistryEntry[]
+  registry: SourceRegistryEntry[],
+  analysis?: SearchQueryAnalysis
 ): Promise<RetrievedEvidenceItem[]> {
   const trimmedQuery = query.trim()
   if (!trimmedQuery) return []
@@ -31,7 +32,7 @@ export async function searchInternetSupplementSources(
   const braveApiKey = process.env.BRAVE_API_KEY
 
   if (braveApiKey) {
-    return searchInternetWithBrave(trimmedQuery, blockedDomains, braveApiKey)
+    return searchInternetWithBrave(trimmedQuery, blockedDomains, braveApiKey, analysis)
   }
 
   return []
@@ -47,6 +48,7 @@ async function searchWithBrave(
     q: buildAuthorityQuery(source, query, analysis),
     count: '5',
   })
+  if (analysis?.timeSensitivity === 'high') searchQuery.set('freshness', 'py')
 
   const response = await fetch(
     `https://api.search.brave.com/res/v1/web/search?${searchQuery.toString()}`,
@@ -69,12 +71,14 @@ async function searchWithBrave(
 async function searchInternetWithBrave(
   query: string,
   blockedDomains: Set<string>,
-  braveApiKey: string
+  braveApiKey: string,
+  analysis?: SearchQueryAnalysis
 ): Promise<RetrievedEvidenceItem[]> {
   const searchQuery = new URLSearchParams({
     q: query,
     count: '6',
   })
+  if (analysis?.timeSensitivity === 'high') searchQuery.set('freshness', 'py')
 
   const response = await fetch(
     `https://api.search.brave.com/res/v1/web/search?${searchQuery.toString()}`,
@@ -100,6 +104,8 @@ interface BraveSearchResponse {
       title?: string
       url?: string
       description?: string
+      page_age?: string
+      age?: string
     }>
   }
   news?: {
@@ -107,6 +113,8 @@ interface BraveSearchResponse {
       title?: string
       url?: string
       description?: string
+      page_age?: string
+      age?: string
     }>
   }
 }
@@ -132,7 +140,7 @@ function parseBraveResults(
       sourceUrl: url,
       sourceDomain: source.domain,
       snippet: (result.description || '').trim(),
-      publishedAt: null,
+      publishedAt: normalizePublishedAt(result.page_age) || normalizePublishedAt(result.age),
       title: (result.title || '').trim(),
       content: (result.description || '').trim(),
     })
@@ -158,13 +166,19 @@ function parseInternetBraveResults(
       sourceUrl: url,
       sourceDomain: domain,
       snippet: (result.description || '').trim(),
-      publishedAt: null,
+      publishedAt: normalizePublishedAt(result.page_age) || normalizePublishedAt(result.age),
       title: (result.title || domain).trim(),
       content: (result.description || '').trim(),
     })
   }
 
   return items
+}
+
+function normalizePublishedAt(value: string | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return null
+  const timestamp = Date.parse(value)
+  return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString()
 }
 
 function dedupeEvidenceItems(items: RetrievedEvidenceItem[]) {

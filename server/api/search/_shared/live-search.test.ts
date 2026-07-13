@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { searchWhitelistedSources } from './live-search'
+import { searchInternetSupplementSources, searchWhitelistedSources } from './live-search'
 import type { SearchQueryAnalysis, SourceRegistryEntry } from '~/types/search'
 
 const registry: SourceRegistryEntry[] = [
@@ -56,6 +56,7 @@ describe('searchWhitelistedSources', () => {
                 title: 'Working result',
                 url: 'https://rarediseases.org/working-result',
                 description: 'Useful summary',
+                page_age: '2026-07-01',
               },
             ],
           },
@@ -77,6 +78,7 @@ describe('searchWhitelistedSources', () => {
     expect(results[0]?.title).toBe('Working result')
     expect(results[0]?.sourceDomain).toBe('rarediseases.org')
     expect(results[0]?.snippet).toBe('Useful summary')
+    expect(results[0]?.publishedAt).toBe('2026-07-01T00:00:00.000Z')
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('https://api.search.brave.com/res/v1/web/search?'),
       expect.objectContaining({
@@ -86,6 +88,36 @@ describe('searchWhitelistedSources', () => {
         }),
       })
     )
+  })
+
+  it('uses a one-year freshness filter only for high time-sensitivity queries', async () => {
+    process.env.BRAVE_API_KEY = 'test-key'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ web: { results: [] } }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await searchWhitelistedSources('FSHD treatment', registry, {
+      ...treatmentUpdateAnalysis,
+      preferredSourceTypes: ['disease_reference'],
+      deprioritizedSourceTypes: [],
+    })
+
+    const requestUrl = new URL(fetchMock.mock.calls[0]?.[0] as string)
+    expect(requestUrl.searchParams.get('freshness')).toBe('py')
+  })
+
+  it('uses the freshness filter for high-sensitivity supplement searches', async () => {
+    process.env.BRAVE_API_KEY = 'test-key'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ web: { results: [] } }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await searchInternetSupplementSources('FSHD treatment', registry, treatmentUpdateAnalysis)
+
+    const requestUrl = new URL(fetchMock.mock.calls[0]?.[0] as string)
+    expect(requestUrl.searchParams.get('freshness')).toBe('py')
   })
 
   it('includes clinical sources for treatment queries instead of only early drug sites', async () => {

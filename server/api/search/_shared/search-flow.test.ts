@@ -1,10 +1,13 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runSearchFlow } from './search-flow'
 import type { SourceRegistryEntry } from '~/types/search'
 
 const registry: SourceRegistryEntry[] = []
 
 describe('runSearchFlow', () => {
+  afterEach(() => {
+    delete process.env.ENABLE_INTERNAL_KNOWLEDGE_BASE
+  })
   const analysis = {
     subject: 'Pompe disease',
     aliases: ['Pompe disease'],
@@ -59,6 +62,7 @@ describe('runSearchFlow', () => {
   })
 
   it('adds knowledge base evidence to the local search stage and still records live search stages', async () => {
+    process.env.ENABLE_INTERNAL_KNOWLEDGE_BASE = 'true'
     const searchKnowledgeBase = vi.fn().mockResolvedValue([
       {
         title: 'FSHD 麻醉注意事项 - 第 2 页',
@@ -102,7 +106,77 @@ describe('runSearchFlow', () => {
     expect(result.searchTrace.map(entry => entry.key)).toContain('internet-search')
   })
 
+  it('skips the internal knowledge base and its trace step by default', async () => {
+    const searchKnowledgeBase = vi.fn().mockResolvedValue([])
+    const result = await runSearchFlow({
+      query: 'FSHD 麻醉注意事项',
+      repositories: {
+        searchNotes: vi.fn().mockResolvedValue([]),
+        searchCache: vi.fn().mockResolvedValue([]),
+        searchKnowledgeBase,
+      },
+      registry,
+      analyzeQuery: vi.fn().mockResolvedValue(analysis),
+      detectSafetyRisk: vi.fn().mockResolvedValue({ risky: false }),
+      generateAnswer: vi
+        .fn()
+        .mockResolvedValue({ content: 'ok', messageStatus: 'completed' as const }),
+    })
+
+    expect(searchKnowledgeBase).not.toHaveBeenCalled()
+    expect(result.searchTrace.map(entry => entry.key)).not.toContain('local-notes')
+  })
+
+  it('orders dated local evidence from newest to oldest', async () => {
+    const result = await runSearchFlow({
+      query: 'Pompe disease treatment',
+      repositories: {
+        searchNotes: vi.fn().mockResolvedValue([]),
+        searchCache: vi.fn().mockResolvedValue([
+          {
+            id: 'old',
+            queryHash: 'old',
+            queryText: 'Pompe',
+            sourceUrl: 'https://example.com/old',
+            sourceDomain: 'example.com',
+            sourceType: 'reference',
+            title: 'Old',
+            snippet: '',
+            content: '',
+            publishedAt: '2025-01-01T00:00:00.000Z',
+            fetchedAt: '',
+            expiresAt: '',
+          },
+          {
+            id: 'new',
+            queryHash: 'new',
+            queryText: 'Pompe',
+            sourceUrl: 'https://example.com/new',
+            sourceDomain: 'example.com',
+            sourceType: 'reference',
+            title: 'New',
+            snippet: '',
+            content: '',
+            publishedAt: '2026-01-01T00:00:00.000Z',
+            fetchedAt: '',
+            expiresAt: '',
+          },
+        ]),
+        searchKnowledgeBase: vi.fn().mockResolvedValue([]),
+      },
+      registry,
+      analyzeQuery: vi.fn().mockResolvedValue(analysis),
+      detectSafetyRisk: vi.fn().mockResolvedValue({ risky: false }),
+      generateAnswer: vi
+        .fn()
+        .mockResolvedValue({ content: 'ok', messageStatus: 'completed' as const }),
+    })
+
+    expect(result.sources.map(source => source.title)).toEqual(['New', 'Old'])
+  })
+
   it('records knowledge base errors without blocking answer generation', async () => {
+    process.env.ENABLE_INTERNAL_KNOWLEDGE_BASE = 'true'
     const result = await runSearchFlow({
       query: 'FSHD 麻醉注意事项',
       repositories: {
