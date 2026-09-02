@@ -6,6 +6,7 @@ import type {
 } from '~/types/search'
 import { normalizeSearchQuery } from './query-normalization'
 import { searchInternetSupplementSources, searchWhitelistedSources } from './live-search'
+import { detectSpecialistTopic, findTrustedAuthoritySource } from './authority-policy'
 import type { SearchRepositories } from './repositories'
 import type { SourceRegistryEntry } from '~/types/search'
 import type { RetrievedEvidenceItem } from './retrieval'
@@ -59,30 +60,72 @@ export async function runSearchFlow({
   const notes = notesResult.status === 'fulfilled' ? notesResult.value : []
   const cache = cacheResult.status === 'fulfilled' ? cacheResult.value : []
   const knowledge = knowledgeResult.status === 'fulfilled' ? knowledgeResult.value : []
+  const specialistQuery = detectSpecialistTopic(query) !== null
   const localEvidence: RetrievedEvidenceItem[] = [
     ...knowledge,
-    ...cache.map(entry => ({
-      sourceType: entry.sourceType,
-      sourceTier: 'authority' as const,
-      sourceLabel: entry.sourceDomain,
-      sourceUrl: entry.sourceUrl,
-      sourceDomain: entry.sourceDomain,
-      snippet: entry.snippet,
-      publishedAt: entry.publishedAt,
-      title: entry.title,
-      content: entry.content,
-    })),
-    ...notes.map(note => ({
-      sourceType: 'reference' as const,
-      sourceTier: 'authority' as const,
-      sourceLabel: note.source,
-      sourceUrl: note.source,
-      sourceDomain: extractDomain(note.source),
-      snippet: note.content.slice(0, 240),
-      publishedAt: note.publishedAt,
-      title: note.title,
-      content: note.content,
-    })),
+    ...cache.map(entry => {
+      const trustedSource = specialistQuery
+        ? findTrustedAuthoritySource({
+            rawQuery: query,
+            result: {
+              url: entry.sourceUrl,
+              title: entry.title,
+              summary: [entry.snippet, entry.content].filter(Boolean).join('\n'),
+            },
+            sources: registry,
+            requiredSourceTypes: analysis.preferredSourceTypes,
+          })
+        : null
+
+      return {
+        sourceType: trustedSource?.sourceType || entry.sourceType,
+        sourceTier: specialistQuery
+          ? trustedSource
+            ? ('authority' as const)
+            : ('internet_supplement' as const)
+          : ('authority' as const),
+        sourceLabel: trustedSource?.name || entry.sourceDomain,
+        sourceUrl: entry.sourceUrl,
+        sourceDomain: trustedSource ? getTrustedSourceDomain(trustedSource) : entry.sourceDomain,
+        snippet: entry.snippet,
+        publishedAt: entry.publishedAt,
+        title: entry.title,
+        content: entry.content,
+      }
+    }),
+    ...notes.map(note => {
+      const noteSource = normalizeSource(note.source)
+      const trustedSource = specialistQuery
+        ? findTrustedAuthoritySource({
+            rawQuery: query,
+            result: {
+              url: noteSource,
+              title: note.title,
+              summary: note.content,
+            },
+            sources: registry,
+            requiredSourceTypes: analysis.preferredSourceTypes,
+          })
+        : null
+
+      return {
+        sourceType: trustedSource?.sourceType || ('reference' as const),
+        sourceTier: specialistQuery
+          ? trustedSource
+            ? ('authority' as const)
+            : ('internet_supplement' as const)
+          : ('authority' as const),
+        sourceLabel: trustedSource?.name || noteSource,
+        sourceUrl: noteSource,
+        sourceDomain: trustedSource
+          ? getTrustedSourceDomain(trustedSource)
+          : extractDomain(noteSource),
+        snippet: note.content.slice(0, 240),
+        publishedAt: note.publishedAt,
+        title: note.title,
+        content: note.content,
+      }
+    }),
   ]
 
   if (internalKnowledgeEnabled) {
@@ -246,6 +289,20 @@ function extractDomain(value: string) {
     return new URL(value).hostname
   } catch {
     return value
+  }
+}
+
+function normalizeSource(value: unknown) {
+  return typeof value === 'string' ? value : ''
+}
+
+function getTrustedSourceDomain(source: SourceRegistryEntry) {
+  try {
+    const url = new URL(source.url)
+    if (url.protocol !== 'https:') return ''
+    return url.hostname.toLowerCase().replace(/^www\./, '')
+  } catch {
+    return ''
   }
 }
 
