@@ -39,6 +39,49 @@ describe('runSearchFlow', () => {
     queryTerms: ['Pompe disease', 'treatment'],
   }
 
+  it('publishes gathered sources before starting answer generation', async () => {
+    const callOrder: string[] = []
+    let publishedTitles: string[] = []
+
+    await runSearchFlow({
+      query: 'Pompe disease treatment',
+      repositories: {
+        searchNotes: vi.fn().mockResolvedValue([]),
+        searchCache: vi.fn().mockResolvedValue([
+          {
+            id: 'early-source',
+            queryHash: 'hash',
+            queryText: 'Pompe disease treatment',
+            sourceUrl: 'https://example.com/early-source',
+            sourceDomain: 'example.com',
+            sourceType: 'reference' as const,
+            title: 'Early source',
+            snippet: 'Evidence available before summary',
+            content: 'Evidence available before summary',
+            publishedAt: null,
+            fetchedAt: '2026-09-03T00:00:00Z',
+            expiresAt: '2026-09-04T00:00:00Z',
+          },
+        ]),
+        searchKnowledgeBase: vi.fn().mockResolvedValue([]),
+      },
+      registry,
+      analyzeQuery: vi.fn().mockResolvedValue(analysis),
+      detectSafetyRisk: vi.fn().mockResolvedValue({ risky: false }),
+      onSources: sources => {
+        publishedTitles = sources.map(source => source.title)
+        callOrder.push('sources')
+      },
+      generateAnswer: vi.fn().mockImplementation(async () => {
+        callOrder.push('answer')
+        return { content: 'ok', messageStatus: 'completed' as const }
+      }),
+    })
+
+    expect(publishedTitles).toEqual(['Early source'])
+    expect(callOrder).toEqual(['sources', 'answer'])
+  })
+
   it('returns all gathered sources instead of truncating combined evidence to eight items', async () => {
     const localCache = Array.from({ length: 5 }, (_, index) => ({
       id: `${index + 1}`,

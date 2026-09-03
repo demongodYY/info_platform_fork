@@ -3,12 +3,12 @@ import { serverSupabaseClient } from '#supabase/server'
 import { createSearchRepositories } from './_shared/repositories'
 import { loadEnabledSourceRegistry } from './_shared/source-registry'
 import { buildSearchPrompt } from './_shared/prompting'
-import { buildFallbackSearchAnswer, generateSearchAnswer } from './_shared/llm'
+import { buildFallbackSearchAnswer, generateSearchAnswerStream } from './_shared/llm'
 import { detectSearchSafetyRisk } from './_shared/safety'
 import { analyzeSearchQuery } from './_shared/query-analysis'
 import { runSearchFlow } from './_shared/search-flow'
 import type { Database } from '~/types/database.types'
-import type { SearchResponse, SearchTraceEntry } from '~/types/search'
+import type { SearchResponse, SearchSource, SearchTraceEntry } from '~/types/search'
 
 type SearchStreamEvent =
   | {
@@ -18,6 +18,14 @@ type SearchStreamEvent =
   | {
       type: 'result'
       result: SearchResponse
+    }
+  | {
+      type: 'answer_delta'
+      delta: string
+    }
+  | {
+      type: 'sources_ready'
+      sources: SearchSource[]
     }
   | {
       type: 'error'
@@ -62,11 +70,17 @@ export default defineEventHandler(async event => {
             detectSafetyRisk: detectSearchSafetyRisk,
             generateAnswer: async ({ query, evidence }) => {
               try {
-                return await generateSearchAnswer(
+                return await generateSearchAnswerStream(
                   buildSearchPrompt({
                     query,
                     evidence,
-                  })
+                  }),
+                  delta => {
+                    push({
+                      type: 'answer_delta',
+                      delta,
+                    })
+                  }
                 )
               } catch {
                 return buildFallbackSearchAnswer({
@@ -79,6 +93,12 @@ export default defineEventHandler(async event => {
               push({
                 type: 'trace',
                 trace,
+              })
+            },
+            onSources: async sources => {
+              push({
+                type: 'sources_ready',
+                sources,
               })
             },
           })

@@ -2,6 +2,43 @@ import { describe, expect, it } from 'vitest'
 import { buildSearchPrompt } from './prompting'
 
 describe('buildSearchPrompt', () => {
+  it('deduplicates identical snippets and content while limiting evidence sent to the model', () => {
+    const authorityEvidence = Array.from({ length: 5 }, (_, index) => ({
+      sourceType: 'reference' as const,
+      sourceTier: 'authority' as const,
+      sourceLabel: `Authority ${index + 1}`,
+      sourceUrl: `https://authority.example.com/${index + 1}`,
+      sourceDomain: 'authority.example.com',
+      snippet: `authority-evidence-${index + 1}`,
+      publishedAt: null,
+      title: `Authority title ${index + 1}`,
+      content: `authority-evidence-${index + 1}`,
+    }))
+    const supplementEvidence = Array.from({ length: 3 }, (_, index) => ({
+      sourceType: 'reference' as const,
+      sourceTier: 'internet_supplement' as const,
+      sourceLabel: `Supplement ${index + 1}`,
+      sourceUrl: `https://supplement.example.com/${index + 1}`,
+      sourceDomain: 'supplement.example.com',
+      snippet: `supplement-evidence-${index + 1}`,
+      publishedAt: null,
+      title: `Supplement title ${index + 1}`,
+      content: `supplement-evidence-${index + 1}`,
+    }))
+
+    const prompt = buildSearchPrompt({
+      query: 'FSHD 最新治疗情况',
+      evidence: [...authorityEvidence, ...supplementEvidence],
+    })
+
+    expect(prompt.match(/authority-evidence-1/g)).toHaveLength(1)
+    expect(prompt).toContain('authority-evidence-4')
+    expect(prompt).not.toContain('authority-evidence-5')
+    expect(prompt).toContain('supplement-evidence-2')
+    expect(prompt).not.toContain('supplement-evidence-3')
+    expect(prompt).toMatch(/500\s*(?:到|至|–|-)\s*800/)
+  })
+
   it('bounds treatment conclusions from a guideline landing page without recommendation text', () => {
     const prompt = buildSearchPrompt({
       query: 'sJIA 用药指南',

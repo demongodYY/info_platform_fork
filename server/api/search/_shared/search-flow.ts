@@ -2,6 +2,7 @@ import type {
   SearchMessageStatus,
   SearchQueryAnalysis,
   SearchResponse,
+  SearchSource,
   SearchTraceEntry,
 } from '~/types/search'
 import { normalizeSearchQuery } from './query-normalization'
@@ -22,6 +23,7 @@ interface SearchFlowDeps {
     messageStatus: SearchMessageStatus
   }>
   onTrace?: (trace: SearchTraceEntry[]) => Promise<void> | void
+  onSources?: (sources: SearchSource[]) => Promise<void> | void
 }
 
 export async function runSearchFlow({
@@ -32,6 +34,7 @@ export async function runSearchFlow({
   detectSafetyRisk,
   generateAnswer,
   onTrace,
+  onSources,
 }: SearchFlowDeps): Promise<SearchResponse> {
   const safety = await detectSafetyRisk(query)
   if (safety.risky) {
@@ -201,6 +204,9 @@ export async function runSearchFlow({
     ...sortEvidenceByPublishedAt(localEvidence.filter(isInternalKnowledgeEvidence)),
     ...sortEvidenceByPublishedAt(supplementEvidence),
   ]
+  const sources = mapEvidenceToSources(evidence)
+  await onSources?.(sources)
+
   const answer = await generateAnswer({
     query,
     evidence,
@@ -210,19 +216,23 @@ export async function runSearchFlow({
     query,
     answer: answer.content,
     messageStatus: answer.messageStatus,
-    sources: evidence.map((item, index) => ({
-      title: item.title,
-      sourceType: item.sourceType,
-      sourceTier: item.sourceTier || 'authority',
-      sourceLabel: item.sourceLabel,
-      sourceUrl: item.sourceUrl,
-      sourceDomain: item.sourceDomain,
-      snippet: item.snippet,
-      publishedAt: item.publishedAt,
-      rank: index + 1,
-    })),
+    sources,
     searchTrace,
   }
+}
+
+function mapEvidenceToSources(evidence: RetrievedEvidenceItem[]): SearchSource[] {
+  return evidence.map((item, index) => ({
+    title: item.title,
+    sourceType: item.sourceType,
+    sourceTier: item.sourceTier || 'authority',
+    sourceLabel: item.sourceLabel,
+    sourceUrl: item.sourceUrl,
+    sourceDomain: item.sourceDomain,
+    snippet: item.snippet,
+    publishedAt: item.publishedAt,
+    rank: index + 1,
+  }))
 }
 
 function isInternalKnowledgeEvidence(item: RetrievedEvidenceItem) {

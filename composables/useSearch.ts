@@ -1,10 +1,12 @@
 import { ref } from 'vue'
-import type { SearchResponse, SearchTraceEntry } from '~/types/search'
+import type { SearchResponse, SearchSource, SearchTraceEntry } from '~/types/search'
 
 export type SearchStatus = 'idle' | 'loading' | 'done' | 'error'
 
 type StreamEvent =
   | { type: 'trace'; trace: SearchTraceEntry[] }
+  | { type: 'sources_ready'; sources: SearchSource[] }
+  | { type: 'answer_delta'; delta: string }
   | { type: 'result'; result: SearchResponse }
   | { type: 'error'; message: string }
 
@@ -12,7 +14,9 @@ export function useSearch() {
   const query = ref('')
   const status = ref<SearchStatus>('idle')
   const trace = ref<SearchTraceEntry[]>([])
+  const sources = ref<SearchSource[]>([])
   const result = ref<SearchResponse | null>(null)
+  const streamedAnswer = ref('')
   const errorMessage = ref('')
 
   async function search(q: string) {
@@ -22,7 +26,9 @@ export function useSearch() {
     query.value = trimmed
     status.value = 'loading'
     trace.value = []
+    sources.value = []
     result.value = null
+    streamedAnswer.value = ''
     errorMessage.value = ''
 
     let response: Response
@@ -71,8 +77,14 @@ export function useSearch() {
 
           if (event.type === 'trace') {
             trace.value = event.trace
+          } else if (event.type === 'sources_ready') {
+            sources.value = event.sources
+          } else if (event.type === 'answer_delta') {
+            streamedAnswer.value += event.delta
           } else if (event.type === 'result') {
             result.value = event.result
+            sources.value = event.result.sources
+            streamedAnswer.value = event.result.answer || streamedAnswer.value
             receivedResult = true
           } else if (event.type === 'error') {
             status.value = 'error'
@@ -99,7 +111,9 @@ export function useSearch() {
     query.value = ''
     status.value = 'idle'
     trace.value = []
+    sources.value = []
     result.value = null
+    streamedAnswer.value = ''
     errorMessage.value = ''
   }
 
@@ -107,7 +121,9 @@ export function useSearch() {
     query,
     status,
     trace,
+    sources,
     result,
+    streamedAnswer,
     errorMessage,
     search,
     reset,
