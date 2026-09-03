@@ -470,4 +470,98 @@ describe('parseRareInfoList', () => {
       expect.arrayContaining([expect.stringMatching(/still|aosd|mas/i)])
     )
   })
+
+  it('registers two authority-qualified, role-complementary sources for each added disease', async () => {
+    const content = await readFile(
+      resolve(process.cwd(), 'rare_disease_bot/rare_info_list.txt'),
+      'utf-8'
+    )
+    const registry = parseRareInfoList(content)
+
+    expect(registry.filter(entry => entry.topics.includes('Hemophilia'))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: 'https://guidelines.wfh.org/guidelines/',
+          sourceTypes: ['clinical_guideline'],
+          authorityEligible: true,
+          topicAliases: expect.arrayContaining(['血友病', 'hemophilia A', 'hemophilia B']),
+        }),
+        expect.objectContaining({
+          url: 'https://wfh.org/treatment-and-care/',
+          sourceTypes: ['patient_org', 'treatment_update'],
+          authorityEligible: true,
+        }),
+        expect.objectContaining({
+          url: 'https://wfh.org/',
+          sourceTypes: ['patient_org', 'treatment_update'],
+          authorityEligible: true,
+        }),
+        expect.objectContaining({
+          url: 'https://www.bleeding.org/',
+          sourceTypes: ['patient_org', 'treatment_update'],
+          authorityEligible: true,
+        }),
+      ])
+    )
+    expect(registry.filter(entry => entry.topics.includes('DMD'))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: 'https://www.parentprojectmd.org/care/care-guidelines/',
+          sourceTypes: ['clinical_guideline'],
+          authorityEligible: true,
+          topicAliases: expect.arrayContaining(['杜氏肌营养不良', 'Duchenne muscular dystrophy']),
+        }),
+        expect.objectContaining({
+          url: 'https://www.mda.org/disease/duchenne-muscular-dystrophy',
+          sourceTypes: ['patient_org', 'treatment_update'],
+          authorityEligible: true,
+        }),
+        expect.objectContaining({
+          url: 'https://cureduchenne.org/',
+          sourceTypes: ['patient_org', 'treatment_update'],
+          authorityEligible: true,
+        }),
+      ])
+    )
+    expect(registry.filter(entry => entry.topics.includes('Acromegaly'))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: 'https://pituitarysociety.org/guidelines/',
+          sourceTypes: ['clinical_guideline'],
+          authorityEligible: true,
+          topicAliases: expect.arrayContaining(['肢端肥大症']),
+        }),
+        expect.objectContaining({
+          url: 'https://acromegalycommunity.org/',
+          sourceTypes: ['patient_org', 'treatment_update'],
+          authorityEligible: true,
+        }),
+        expect.objectContaining({
+          url: 'https://pituitary.org/',
+          sourceTypes: ['patient_org', 'treatment_update'],
+          authorityEligible: true,
+        }),
+        expect.objectContaining({
+          url: 'https://www.endocrine.org/journals/endocrine-reviews/medical-treatment-of-acromegaly',
+          sourceTypes: ['research_publication', 'treatment_update'],
+          authorityEligible: true,
+        }),
+      ])
+    )
+    expect(registry.filter(entry => entry.topics.includes('Narcolepsy'))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          url: 'https://aasm.org/wp-content/uploads/2022/03/Treatment_Central_Disorders_Hypersomnolence_Guideline_at_a_Glance.pdf',
+          sourceTypes: ['clinical_guideline'],
+          authorityEligible: true,
+          topicAliases: expect.arrayContaining(['发作性睡病']),
+        }),
+        expect.objectContaining({
+          url: 'https://project-sleep.com/',
+          sourceTypes: ['patient_org', 'treatment_update'],
+          authorityEligible: true,
+        }),
+      ])
+    )
+  })
 })

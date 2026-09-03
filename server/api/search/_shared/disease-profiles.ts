@@ -34,6 +34,37 @@ export const DISEASE_PROFILES: readonly DiseaseProfile[] = [
     },
     treatmentQueriesUseClinicalGuidance: true,
   },
+  {
+    canonical: 'Hemophilia',
+    aliases: [
+      'hemophilia',
+      'haemophilia',
+      'hemophilia A',
+      'hemophilia B',
+      '血友病',
+      '血友病A',
+      '血友病B',
+      '血友',
+    ],
+  },
+  {
+    canonical: 'DMD',
+    aliases: [
+      'DMD',
+      'Duchenne muscular dystrophy',
+      'Duchenne dystrophy',
+      '杜氏肌营养不良',
+      '杜氏肌营养不良症',
+    ],
+  },
+  {
+    canonical: 'Acromegaly',
+    aliases: ['acromegaly', '肢端肥大症'],
+  },
+  {
+    canonical: 'Narcolepsy',
+    aliases: ['narcolepsy', '发作性睡病'],
+  },
 ]
 
 export function findDiseaseProfile(value: string): DiseaseProfile | undefined {
