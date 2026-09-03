@@ -18,10 +18,18 @@ export function useSearch() {
   const result = ref<SearchResponse | null>(null)
   const streamedAnswer = ref('')
   const errorMessage = ref('')
+  let requestSequence = 0
+  let activeAbortController: AbortController | null = null
 
   async function search(q: string) {
     const trimmed = q.trim()
     if (!trimmed) return
+
+    activeAbortController?.abort()
+    const requestId = ++requestSequence
+    const abortController = new AbortController()
+    activeAbortController = abortController
+    const isCurrentRequest = () => requestId === requestSequence
 
     query.value = trimmed
     status.value = 'loading'
@@ -37,14 +45,17 @@ export function useSearch() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: trimmed }),
+        signal: abortController.signal,
       })
     } catch {
+      if (!isCurrentRequest() || abortController.signal.aborted) return
       status.value = 'error'
       errorMessage.value = '网络连接失败，请检查网络后重试'
       return
     }
 
     if (!response.ok) {
+      if (!isCurrentRequest()) return
       status.value = 'error'
       errorMessage.value = `搜索请求失败：${response.status}`
       return
@@ -52,6 +63,7 @@ export function useSearch() {
 
     const reader = response.body?.getReader()
     if (!reader) {
+      if (!isCurrentRequest()) return
       status.value = 'error'
       errorMessage.value = '搜索流未返回可读数据'
       return
@@ -64,6 +76,10 @@ export function useSearch() {
     try {
       while (true) {
         const { done, value } = await reader.read()
+        if (!isCurrentRequest()) {
+          await reader.cancel().catch(() => undefined)
+          return
+        }
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
@@ -94,10 +110,13 @@ export function useSearch() {
         }
       }
     } catch {
+      if (!isCurrentRequest() || abortController.signal.aborted) return
       status.value = 'error'
       errorMessage.value = '搜索流读取中断'
       return
     }
+
+    if (!isCurrentRequest()) return
 
     if (receivedResult) {
       status.value = 'done'
@@ -108,6 +127,9 @@ export function useSearch() {
   }
 
   function reset() {
+    requestSequence++
+    activeAbortController?.abort()
+    activeAbortController = null
     query.value = ''
     status.value = 'idle'
     trace.value = []

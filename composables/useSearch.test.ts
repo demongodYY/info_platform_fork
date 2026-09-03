@@ -228,6 +228,38 @@ describe('useSearch', () => {
     expect(errorMessage.value).toBe('')
   })
 
+  it('reset 后取消并忽略仍在返回的旧搜索', async () => {
+    const encoder = new TextEncoder()
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined
+    let requestSignal: AbortSignal | undefined
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        streamController = controller
+      },
+    })
+    globalThis.fetch = vi.fn().mockImplementation((_url, init) => {
+      requestSignal = init?.signal
+      return Promise.resolve({ ok: true, status: 200, body } as Response)
+    })
+
+    const { status, sources, result, streamedAnswer, search, reset } = useSearch()
+    const searchPromise = search('旧搜索')
+    await vi.waitFor(() => expect(streamController).toBeDefined())
+    reset()
+
+    expect(requestSignal?.aborted).toBe(true)
+    streamController?.enqueue(
+      encoder.encode(`${JSON.stringify({ type: 'answer_delta', delta: '旧回答' })}\n`)
+    )
+    streamController?.close()
+    await searchPromise
+
+    expect(status.value).toBe('idle')
+    expect(sources.value).toEqual([])
+    expect(result.value).toBeNull()
+    expect(streamedAnswer.value).toBe('')
+  })
+
   it('query ref 更新为搜索词', async () => {
     const events = [JSON.stringify({ type: 'result', result: resultEvent })]
     globalThis.fetch = mockFetchStream(events)

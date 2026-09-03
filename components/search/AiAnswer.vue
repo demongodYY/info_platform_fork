@@ -20,9 +20,10 @@ import { ref, computed } from 'vue'
 const props = defineProps<{
   answer: string
   streaming?: boolean
+  initiallyExpanded?: boolean
 }>()
 
-const showAnswer = ref(false)
+const showAnswer = ref(props.initiallyExpanded || false)
 
 const paragraphs = computed(() =>
   props.answer

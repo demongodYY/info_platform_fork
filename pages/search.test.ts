@@ -331,6 +331,23 @@ describe('search.vue', () => {
     expect(wrapper.find('.ai-answer__trigger').exists()).toBe(false)
   })
 
+  it('shows a safety-routed answer even when there are no sources', async () => {
+    mockStatus.value = 'done'
+    mockResult.value = {
+      ...sampleResult,
+      sources: [],
+      answer: '请立即联系当地急救服务或可信赖的人陪伴你。',
+      messageStatus: 'safety_routed',
+    }
+
+    const wrapper = mount(SearchPage)
+    await flushPromises()
+
+    expect(wrapper.find('.source-list').exists()).toBe(false)
+    expect(wrapper.find('.ai-answer__body').exists()).toBe(true)
+    expect(wrapper.text()).toContain('请立即联系当地急救服务或可信赖的人陪伴你。')
+  })
+
   // ── Error state ─────────────────────────────────────────────────────
 
   it('shows error message and retry button', async () => {

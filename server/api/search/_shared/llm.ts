@@ -60,7 +60,8 @@ export async function generateSearchAnswer(prompt: string): Promise<GeneratedAns
 
 export async function generateSearchAnswerStream(
   prompt: string,
-  onDelta: (delta: string) => void
+  onDelta: (delta: string) => void,
+  signal?: AbortSignal
 ): Promise<GeneratedAnswer> {
   const apiKey = process.env.OPENAI_API_KEY
   const apiBase = process.env.OPENAI_API_BASE || 'https://api.openai.com/v1'
@@ -79,6 +80,7 @@ export async function generateSearchAnswerStream(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
+    signal,
     body: JSON.stringify({
       model,
       temperature: 0.3,
@@ -104,20 +106,33 @@ export async function generateSearchAnswerStream(
   const decoder = new TextDecoder()
   let buffer = ''
   let content = ''
+  let sawDone = false
 
   const processLine = (line: string) => {
     const trimmed = line.trim()
     if (!trimmed.startsWith('data:')) return
 
     const payload = trimmed.slice(5).trim()
-    if (!payload || payload === '[DONE]') return
+    if (!payload) return
+    if (payload === '[DONE]') {
+      sawDone = true
+      return
+    }
 
     const data = JSON.parse(payload) as {
+      error?: { message?: string }
       choices?: Array<{
         delta?: {
           content?: string
         }
+        finish_reason?: string | null
       }>
+    }
+    if (data.error) {
+      throw new Error(data.error.message || 'Search model stream returned an error')
+    }
+    if (data.choices?.[0]?.finish_reason === 'length') {
+      throw new Error('Search model stream reached its output limit')
     }
     const delta = data.choices?.[0]?.delta?.content
     if (!delta) return
@@ -139,8 +154,15 @@ export async function generateSearchAnswerStream(
   buffer += decoder.decode()
   if (buffer.trim()) processLine(buffer)
 
+  if (!sawDone) {
+    throw new Error('Search model stream ended unexpectedly')
+  }
+  if (!content.trim()) {
+    throw new Error('Search model stream returned no content')
+  }
+
   return {
-    content: content.trim() || '暂时没有生成可用回复。',
+    content: content.trim(),
     messageStatus: 'completed',
   }
 }

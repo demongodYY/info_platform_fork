@@ -83,4 +83,26 @@ describe('buildSearchPrompt', () => {
     expect(treatmentBoundaryRule).toContain('治疗结论')
     expect(prompt).toMatch(/除非.*具体推荐文本/)
   })
+
+  it('keeps distinct snippet and content evidence within the prompt budget', () => {
+    const prompt = buildSearchPrompt({
+      query: 'FSHD 最新治疗情况',
+      evidence: [
+        {
+          sourceType: 'news',
+          sourceTier: 'authority',
+          sourceLabel: 'FSHD Society',
+          sourceUrl: 'https://www.fshdsociety.org/update',
+          sourceDomain: 'fshdsociety.org',
+          snippet: '关键命中摘要：一项新的临床研究已经启动。',
+          publishedAt: null,
+          title: 'FSHD research update',
+          content: '网页背景内容：本页面汇总机构的研究新闻和活动。',
+        },
+      ],
+    })
+
+    expect(prompt).toContain('关键命中摘要：一项新的临床研究已经启动。')
+    expect(prompt).toContain('网页背景内容：本页面汇总机构的研究新闻和活动。')
+  })
 })

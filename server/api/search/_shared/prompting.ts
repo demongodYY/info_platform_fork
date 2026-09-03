@@ -23,7 +23,13 @@ export function buildSearchPrompt(input: { query: string; evidence: RetrievedEvi
   ) => {
     const content = item.content.trim()
     const snippet = item.snippet.trim()
-    const excerpt = content || snippet
+    let excerpt = content || snippet
+
+    if (content && snippet && content !== snippet && !content.includes(snippet)) {
+      const snippetBudget = Math.floor(limit / 2)
+      const contentBudget = limit - snippetBudget
+      excerpt = `命中摘要: ${snippet.slice(0, snippetBudget)}\n页面内容: ${content.slice(0, contentBudget)}`
+    }
 
     return `[${tierLabel}｜${item.sourceLabel}] ${item.title}\nURL: ${item.sourceUrl}\n证据片段: ${excerpt.slice(0, limit)}`
   }

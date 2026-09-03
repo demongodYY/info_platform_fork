@@ -13,9 +13,13 @@
     <div v-if="status === 'loading' && !sources.length" class="search-page__section">
       <TraceSteps :trace="trace" :loading="true" />
     </div>
-    <div v-if="displaySources.length" class="search-page__section">
+    <div v-if="displaySources.length || displayAnswer" class="search-page__section">
       <SourceList :sources="displaySources" />
-      <AiAnswer :answer="displayAnswer" :streaming="status === 'loading'" />
+      <AiAnswer
+        :answer="displayAnswer"
+        :streaming="status === 'loading'"
+        :initially-expanded="result?.messageStatus === 'safety_routed'"
+      />
     </div>
     <section v-if="status === 'error'" class="search-page__section search-page__section--error">
       <p class="search-page__error-msg">{{ errorMessage }}</p>

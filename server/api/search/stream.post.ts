@@ -53,10 +53,13 @@ export default defineEventHandler(async event => {
   )
   const registry = await loadEnabledSourceRegistry(repositories).catch(() => [])
   const encoder = new TextEncoder()
+  const abortController = new AbortController()
+  let cancelled = false
 
   const stream = new ReadableStream({
     start(controller) {
       const push = (payload: SearchStreamEvent) => {
+        if (cancelled) return
         controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`))
       }
 
@@ -80,9 +83,11 @@ export default defineEventHandler(async event => {
                       type: 'answer_delta',
                       delta,
                     })
-                  }
+                  },
+                  abortController.signal
                 )
-              } catch {
+              } catch (error) {
+                if (abortController.signal.aborted) throw error
                 return buildFallbackSearchAnswer({
                   query,
                   evidence,
@@ -113,9 +118,13 @@ export default defineEventHandler(async event => {
             message: error instanceof Error ? error.message : '搜索失败',
           })
         } finally {
-          controller.close()
+          if (!cancelled) controller.close()
         }
       })()
+    },
+    cancel() {
+      cancelled = true
+      abortController.abort()
     },
   })
 
@@ -123,6 +132,7 @@ export default defineEventHandler(async event => {
     headers: {
       'Content-Type': 'application/x-ndjson; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
+      'X-Accel-Buffering': 'no',
       Connection: 'keep-alive',
     },
   })
